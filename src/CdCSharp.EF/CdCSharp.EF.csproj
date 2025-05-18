@@ -1,0 +1,40 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+
+		<PackageId>CdCSharp.EF</PackageId>
+		<Description>A complete and extensible library for implementing Multi-Tenancy in .NET 9 applications with Entity Framework Core, offering transparent data isolation and flexible configuration.</Description>
+		<VersionPrefix>1.0.0</VersionPrefix>
+		<Authors>Samuel Maícas (CdCSharp)</Authors>
+		<Company>smaicas</Company>
+		<PackageProjectUrl></PackageProjectUrl>
+		<RepositoryUrl>https://github.com/smaicas/CdCSharp.EF</RepositoryUrl>
+
+		<LangVersion>Latest</LangVersion>
+		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+		<IsPackable>true</IsPackable>
+		<Configurations>Debug;Release;Integration</Configurations>
+		<Title>CdCSharp FluentCli</Title>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<RepositoryType>Git</RepositoryType>
+		<PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+		<PackageIcon>logo.png</PackageIcon>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="CdCSharp.EF.UnitTests" />
+		<InternalsVisibleTo Include="CdCSharp.EF.IntegrationTests" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.5" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.5" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.5" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.5" />
+	</ItemGroup>
+
+</Project>

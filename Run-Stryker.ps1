@@ -1,0 +1,1 @@
+dotnet tool run dotnet-stryker -- --output ./.stryker-output
