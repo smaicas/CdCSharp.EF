@@ -1,1 +1,0 @@
-dotnet tool install dotnet-stryker
