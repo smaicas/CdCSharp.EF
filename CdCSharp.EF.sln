@@ -1,0 +1,69 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "misc", "misc", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		.gitignore = .gitignore
+		azure-nuget.config = azure-nuget.config
+		azure-pipelines-gen-artifacts.yml = azure-pipelines-gen-artifacts.yml
+		azure-pipelines.yml = azure-pipelines.yml
+		CONTRIBUTE.md = CONTRIBUTE.md
+		.github\workflows\dotnet.yml = .github\workflows\dotnet.yml
+		Install-Stryker-Tool.ps1 = Install-Stryker-Tool.ps1
+		LICENSE.md = LICENSE.md
+		logo.ico = logo.ico
+		logo.png = logo.png
+		README.md = README.md
+		Run-Stryker.ps1 = Run-Stryker.ps1
+		Tools-Create-Manifest.ps1 = Tools-Create-Manifest.ps1
+		Tools-Restore.ps1 = Tools-Restore.ps1
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{DD7E9A28-2252-44FE-BE49-85D11010DC94}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{2901438D-7353-48E1-A2ED-05AD4C14D6CC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CdCSharp.EF", "src\CdCSharp.EF\CdCSharp.EF.csproj", "{17A30A8B-5DD4-383F-0304-A653B129C95F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CdCSharp.EF.UnitTests", "test\CdCSharp.EF.UnitTests\CdCSharp.EF.UnitTests.csproj", "{19808C66-355F-2341-E74D-2598A16AA1CE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CdCSharp.EF.IntegrationTests", "test\CdCSharp.EF.IntegrationTests\CdCSharp.EF.IntegrationTests.csproj", "{7D20A59B-8636-C697-8F9F-F1D00C8B6290}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Integration|Any CPU = Integration|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{17A30A8B-5DD4-383F-0304-A653B129C95F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{17A30A8B-5DD4-383F-0304-A653B129C95F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{17A30A8B-5DD4-383F-0304-A653B129C95F}.Integration|Any CPU.ActiveCfg = Integration|Any CPU
+		{17A30A8B-5DD4-383F-0304-A653B129C95F}.Integration|Any CPU.Build.0 = Integration|Any CPU
+		{17A30A8B-5DD4-383F-0304-A653B129C95F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{17A30A8B-5DD4-383F-0304-A653B129C95F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{19808C66-355F-2341-E74D-2598A16AA1CE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{19808C66-355F-2341-E74D-2598A16AA1CE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{19808C66-355F-2341-E74D-2598A16AA1CE}.Integration|Any CPU.ActiveCfg = Debug|Any CPU
+		{19808C66-355F-2341-E74D-2598A16AA1CE}.Integration|Any CPU.Build.0 = Debug|Any CPU
+		{19808C66-355F-2341-E74D-2598A16AA1CE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{19808C66-355F-2341-E74D-2598A16AA1CE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7D20A59B-8636-C697-8F9F-F1D00C8B6290}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7D20A59B-8636-C697-8F9F-F1D00C8B6290}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7D20A59B-8636-C697-8F9F-F1D00C8B6290}.Integration|Any CPU.ActiveCfg = Debug|Any CPU
+		{7D20A59B-8636-C697-8F9F-F1D00C8B6290}.Integration|Any CPU.Build.0 = Debug|Any CPU
+		{7D20A59B-8636-C697-8F9F-F1D00C8B6290}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7D20A59B-8636-C697-8F9F-F1D00C8B6290}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{17A30A8B-5DD4-383F-0304-A653B129C95F} = {DD7E9A28-2252-44FE-BE49-85D11010DC94}
+		{19808C66-355F-2341-E74D-2598A16AA1CE} = {2901438D-7353-48E1-A2ED-05AD4C14D6CC}
+		{7D20A59B-8636-C697-8F9F-F1D00C8B6290} = {2901438D-7353-48E1-A2ED-05AD4C14D6CC}
+	EndGlobalSection
+EndGlobal
