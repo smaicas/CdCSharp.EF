@@ -13,7 +13,19 @@ public static class ApplicationBuilderExtensions
         ITenantStore store = scope.ServiceProvider.GetRequiredService<ITenantStore>();
         if (store is IWritableTenantStore)
         {
-            return app.UseMiddleware<MultiTenantMiddleware>();
+            app = app.UseMiddleware<MultiTenantMiddleware>();
+        }
+
+        return app;
+    }
+
+    public static IApplicationBuilder UseCurrentUser(this IApplicationBuilder app)
+    {
+        using IServiceScope scope = app.ApplicationServices.CreateScope();
+        ICurrentUserStore? userStore = scope.ServiceProvider.GetService<ICurrentUserStore>();
+        if (userStore is IWritableCurrentUserStore)
+        {
+            app = app.UseMiddleware<CurrentUserMiddleware>();
         }
 
         return app;

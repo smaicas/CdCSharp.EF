@@ -1,4 +1,6 @@
-﻿using CdCSharp.EF.Core.Abstractions;
+﻿using CdCSharp.EF.Configuration;
+using CdCSharp.EF.Core;
+using CdCSharp.EF.Core.Abstractions;
 using CdCSharp.EF.Extensions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
@@ -59,6 +61,60 @@ public class DiscriminatorMultiTenantWebApplicationFactory : WebApplicationFacto
     }
 }
 
+// Factory para tests discriminator con features
+public class DiscriminatorWithFeaturesMultiTenantWebApplicationFactory : WebApplicationFactory<Program>
+{
+    private readonly string _databaseName;
+
+    public DiscriminatorWithFeaturesMultiTenantWebApplicationFactory() =>
+        _databaseName = $"Integration_DiscriminatorFeatures_{Guid.NewGuid()}";
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseContentRoot(Directory.GetCurrentDirectory());
+
+        builder.ConfigureServices(services =>
+        {
+            services.AddHttpContextAccessor();
+
+            // Add controllers
+            services.AddControllers();
+
+            // Configure multi-tenant with discriminator strategy and features
+            services.AddMultiTenantByDiscriminatorDbContext<IntegrationTestDbContext>(
+                options => options.UseInMemoryDatabase(_databaseName),
+                features => features.EnableAuditing(config =>
+                {
+                    config.BehaviorWhenNoUser = AuditingBehavior.UseDefaultUser;
+                    config.DefaultUserId = "SYSTEM";
+                })
+            );
+        });
+
+        builder.Configure(app =>
+        {
+            app.UseCurrentUser();
+            app.UseMultiTenant();
+            app.UseRouting();
+            app.UseEndpoints(endpoints => endpoints.MapControllers());
+        });
+    }
+
+    public async Task SeedDataAsync(string tenantId, Func<IntegrationTestDbContext, Task> seedAction)
+    {
+        using IServiceScope scope = Services.CreateScope();
+
+        IWritableTenantStore? tenantStore = scope.ServiceProvider.GetRequiredService<ITenantStore>() as IWritableTenantStore;
+        tenantStore!.SetCurrentTenantId(tenantId);
+
+        IntegrationTestDbContext context = scope.ServiceProvider.GetRequiredService<IntegrationTestDbContext>();
+        await context.Database.EnsureCreatedAsync();
+        await seedAction(context);
+
+        tenantStore!.ClearCurrentTenantId();
+    }
+}
+
 // Factory para tests con estrategia Database
 public class DatabaseMultiTenantWebApplicationFactory : WebApplicationFactory<Program>
 {
@@ -75,23 +131,26 @@ public class DatabaseMultiTenantWebApplicationFactory : WebApplicationFactory<Pr
             // Add controllers
             services.AddControllers();
 
-            // Aunque se crea una instancia de DatabaseMultiTenantWebApplicationFactory por cada caso de test
-            // Parece mantener la persistencia de las bases de datos en memoria por lo que añado
-            // el instanceID para asegurar que cada caso se ejecuta sobre bases de datos limpias.
-
-            services.AddMultiTenantByDatabaseDbContext<IntegrationTestDbContext>("tenant1", options =>
-                options.UseInMemoryDatabase($"Integration_DB_tenant1_{_instanceId}"));
-
-            services.AddMultiTenantByDatabaseDbContext<IntegrationTestDbContext>("tenant2", options =>
-                options.UseInMemoryDatabase($"Integration_DB_tenant2_{_instanceId}"));
-
-            services.AddMultiTenantByDatabaseDbContext<IntegrationTestDbContext>("tenant3", options =>
-                options.UseInMemoryDatabase($"Integration_DB_tenant3_{_instanceId}"));
-        }
+            // Usar el nuevo método con builder pattern y features
+            services.AddMultiTenantByDatabaseDbContext<IntegrationTestDbContext>(
+                tenants => tenants
+                    .AddTenant("tenant1", options =>
+                        options.UseInMemoryDatabase($"Integration_DB_tenant1_{_instanceId}"))
+                    .AddTenant("tenant2", options =>
+                        options.UseInMemoryDatabase($"Integration_DB_tenant2_{_instanceId}"))
+                    .AddTenant("tenant3", options =>
+                        options.UseInMemoryDatabase($"Integration_DB_tenant3_{_instanceId}")),
+                features => features.EnableAuditing(config =>
+                {
+                    config.BehaviorWhenNoUser = AuditingBehavior.UseDefaultUser;
+                    config.DefaultUserId = "SYSTEM";
+                })
             );
+        });
 
         builder.Configure(app =>
         {
+            app.UseCurrentUser();
             app.UseMultiTenant();
             app.UseRouting();
             app.UseEndpoints(endpoints => endpoints.MapControllers());
@@ -101,10 +160,10 @@ public class DatabaseMultiTenantWebApplicationFactory : WebApplicationFactory<Pr
     public async Task SeedDataForTenantAsync(string tenantId, Func<IntegrationTestDbContext, Task> seedAction)
     {
         using IServiceScope scope = Services.CreateScope();
-        Core.Abstractions.IMultiTenantDbContextFactory<IntegrationTestDbContext> factory = scope.ServiceProvider.GetRequiredService<Core.Abstractions.IMultiTenantDbContextFactory<IntegrationTestDbContext>>();
+        IMultiTenantDbContextFactory<IntegrationTestDbContext> factory = scope.ServiceProvider.GetRequiredService<IMultiTenantDbContextFactory<IntegrationTestDbContext>>();
 
-        Core.Abstractions.IWritableTenantStore? tenantStore = scope.ServiceProvider.GetRequiredService<Core.Abstractions.ITenantStore>() as IWritableTenantStore;
-        tenantStore.SetCurrentTenantId(tenantId);
+        IWritableTenantStore? tenantStore = scope.ServiceProvider.GetRequiredService<ITenantStore>() as IWritableTenantStore;
+        tenantStore!.SetCurrentTenantId(tenantId);
 
         using IntegrationTestDbContext context = factory.CreateDbContext(tenantId);
         await context.Database.EnsureCreatedAsync();
@@ -210,6 +269,77 @@ public class CustomResolverMultiTenantWebApplicationFactory : WebApplicationFact
 
         tenantStore.ClearCurrentTenantId();
     }
+}
+
+// Factory para tests sin multi-tenant
+public class ExtensibleDbContextWebApplicationFactory : WebApplicationFactory<Program>
+{
+    private readonly string _databaseName = $"Integration_Simple_{Guid.NewGuid()}";
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseContentRoot(Directory.GetCurrentDirectory());
+
+        builder.ConfigureServices(services =>
+        {
+            services.AddHttpContextAccessor();
+
+            // Add controllers
+            services.AddControllers();
+
+            // Configure simple context with auditing
+            services.AddExtensibleDbContext<SimpleDbContext>(
+                options => options.UseInMemoryDatabase(_databaseName),
+                features => features.EnableAuditing(config =>
+                {
+                    config.BehaviorWhenNoUser = AuditingBehavior.UseDefaultUser;
+                    config.DefaultUserId = "SYSTEM";
+                })
+            );
+        });
+
+        builder.Configure(app =>
+        {
+            app.UseCurrentUser();
+            app.UseRouting();
+            app.UseEndpoints(endpoints => endpoints.MapControllers());
+        });
+    }
+}
+
+// DbContext simple para tests
+public class SimpleDbContext : ExtensibleDbContext
+{
+    public SimpleDbContext(DbContextOptions<SimpleDbContext> options,
+        IServiceProvider serviceProvider)
+        : base(options, serviceProvider)
+    {
+    }
+
+    public DbSet<ProductAuditableWithUser> Products { get; set; } = null!;
+}
+
+// Entidad simple para tests
+public class ProductAuditableWithUser : IAuditableWithUserEntity
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+    public string Category { get; set; } = string.Empty;
+
+    // IAuditableWithUserEntity
+    public DateTime CreatedDate { get; set; }
+    public DateTime LastModifiedDate { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
+}
+
+// DTO para tests
+public class CreateProductAuditableWithUserRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+    public string Category { get; set; } = string.Empty;
 }
 
 public class QueryStringTenantResolver : ITenantResolver

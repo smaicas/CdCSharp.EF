@@ -1,4 +1,5 @@
-﻿using CdCSharp.EF.Core;
+﻿using CdCSharp.EF.Configuration;
+using CdCSharp.EF.Core;
 using CdCSharp.EF.Core.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,17 +28,17 @@ public class MultiTenantDbContextFactoryTests : IDisposable
         const string tenantId = "tenant1";
         _mockTenantStore.Setup(s => s.GetCurrentTenantId()).Returns(tenantId);
 
-        MultiTenantConfiguration<TestDbContext> configuration = new()
+        MultiTenantConfiguration<TestMultiTenantDbContext> configuration = new()
         {
             Strategy = MultiTenantStrategy.Discriminator,
             DiscriminatorConfiguration = options => options.UseInMemoryDatabase("test-db")
         };
 
-        MultiTenantDbContextFactory<TestDbContext> factory = new(
+        MultiTenantDbContextFactory<TestMultiTenantDbContext> factory = new(
             _serviceProvider, _mockTenantStore.Object, configuration);
 
         // Act
-        using TestDbContext context = factory.CreateDbContext();
+        using TestMultiTenantDbContext context = factory.CreateDbContext();
 
         // Assert
         Assert.NotNull(context);
@@ -50,17 +51,17 @@ public class MultiTenantDbContextFactoryTests : IDisposable
         // Arrange
         const string tenantId = "tenant1";
 
-        MultiTenantConfiguration<TestDbContext> configuration = new()
+        MultiTenantConfiguration<TestMultiTenantDbContext> configuration = new()
         {
             Strategy = MultiTenantStrategy.Discriminator,
             DiscriminatorConfiguration = options => options.UseInMemoryDatabase("test-db")
         };
 
-        MultiTenantDbContextFactory<TestDbContext> factory = new(
+        MultiTenantDbContextFactory<TestMultiTenantDbContext> factory = new(
             _serviceProvider, _mockTenantStore.Object, configuration);
 
         // Act
-        using TestDbContext context = factory.CreateDbContext(tenantId);
+        using TestMultiTenantDbContext context = factory.CreateDbContext(tenantId);
 
         // Assert
         Assert.NotNull(context);
@@ -73,10 +74,10 @@ public class MultiTenantDbContextFactoryTests : IDisposable
         // Arrange
         const string tenantId = "tenant1";
 
-        MultiTenantConfiguration<TestDbContext> configuration = new()
+        MultiTenantConfiguration<TestMultiTenantDbContext> configuration = new()
         {
             Strategy = MultiTenantStrategy.Database,
-            DatabaseConfigurations = new Dictionary<string, Action<DbContextOptionsBuilder<TestDbContext>>>
+            DatabaseConfigurations = new Dictionary<string, Action<DbContextOptionsBuilder<TestMultiTenantDbContext>>>
         {
             {
                 tenantId,
@@ -85,11 +86,11 @@ public class MultiTenantDbContextFactoryTests : IDisposable
         }
         };
 
-        MultiTenantDbContextFactory<TestDbContext> factory = new(
+        MultiTenantDbContextFactory<TestMultiTenantDbContext> factory = new(
             _serviceProvider, _mockTenantStore.Object, configuration);
 
         // Act
-        using TestDbContext context = factory.CreateDbContext(tenantId);
+        using TestMultiTenantDbContext context = factory.CreateDbContext(tenantId);
 
         // Assert
         Assert.NotNull(context);
@@ -101,13 +102,13 @@ public class MultiTenantDbContextFactoryTests : IDisposable
         // Arrange
         const string tenantId = "missing-tenant";
 
-        MultiTenantConfiguration<TestDbContext> configuration = new()
+        MultiTenantConfiguration<TestMultiTenantDbContext> configuration = new()
         {
             Strategy = MultiTenantStrategy.Database,
-            DatabaseConfigurations = new Dictionary<string, Action<DbContextOptionsBuilder<TestDbContext>>>()
+            DatabaseConfigurations = new Dictionary<string, Action<DbContextOptionsBuilder<TestMultiTenantDbContext>>>()
         };
 
-        MultiTenantDbContextFactory<TestDbContext> factory = new(
+        MultiTenantDbContextFactory<TestMultiTenantDbContext> factory = new(
             _serviceProvider, _mockTenantStore.Object, configuration);
 
         // Act & Assert
@@ -121,13 +122,13 @@ public class MultiTenantDbContextFactoryTests : IDisposable
         // Arrange
         _mockTenantStore.Setup(s => s.GetCurrentTenantId()).Returns((string?)null);
 
-        MultiTenantConfiguration<TestDbContext> configuration = new()
+        MultiTenantConfiguration<TestMultiTenantDbContext> configuration = new()
         {
             Strategy = MultiTenantStrategy.Discriminator,
             DiscriminatorConfiguration = options => options.UseInMemoryDatabase("test-db")
         };
 
-        MultiTenantDbContextFactory<TestDbContext> factory = new(
+        MultiTenantDbContextFactory<TestMultiTenantDbContext> factory = new(
             _serviceProvider, _mockTenantStore.Object, configuration);
 
         // Act & Assert
@@ -141,13 +142,13 @@ public class MultiTenantDbContextFactoryTests : IDisposable
         // Arrange
         _mockTenantStore.Setup(s => s.GetCurrentTenantId()).Returns(string.Empty);
 
-        MultiTenantConfiguration<TestDbContext> configuration = new()
+        MultiTenantConfiguration<TestMultiTenantDbContext> configuration = new()
         {
             Strategy = MultiTenantStrategy.Discriminator,
             DiscriminatorConfiguration = options => options.UseInMemoryDatabase("test-db")
         };
 
-        MultiTenantDbContextFactory<TestDbContext> factory = new(
+        MultiTenantDbContextFactory<TestMultiTenantDbContext> factory = new(
             _serviceProvider, _mockTenantStore.Object, configuration);
 
         // Act & Assert
@@ -162,22 +163,22 @@ public class MultiTenantDbContextFactoryTests : IDisposable
         const string tenant1 = "tenant1";
         const string tenant2 = "tenant2";
 
-        MultiTenantConfiguration<TestDbContext> configuration = new()
+        MultiTenantConfiguration<TestMultiTenantDbContext> configuration = new()
         {
             Strategy = MultiTenantStrategy.Database,
-            DatabaseConfigurations = new Dictionary<string, Action<DbContextOptionsBuilder<TestDbContext>>>
+            DatabaseConfigurations = new Dictionary<string, Action<DbContextOptionsBuilder<TestMultiTenantDbContext>>>
         {
             { tenant1, options => options.UseInMemoryDatabase($"db-{tenant1}") },
             { tenant2, options => options.UseInMemoryDatabase($"db-{tenant2}") }
         }
         };
 
-        MultiTenantDbContextFactory<TestDbContext> factory = new(
+        MultiTenantDbContextFactory<TestMultiTenantDbContext> factory = new(
             _serviceProvider, _mockTenantStore.Object, configuration);
 
         // Act
-        using TestDbContext context1 = factory.CreateDbContext(tenant1);
-        using TestDbContext context2 = factory.CreateDbContext(tenant2);
+        using TestMultiTenantDbContext context1 = factory.CreateDbContext(tenant1);
+        using TestMultiTenantDbContext context2 = factory.CreateDbContext(tenant2);
 
         // Assert
         Assert.NotNull(context1);
@@ -191,19 +192,19 @@ public class MultiTenantDbContextFactoryTests : IDisposable
         // Arrange
         const string tenantId = "tenant1";
 
-        MultiTenantConfiguration<TestDbContext> configuration = new()
+        MultiTenantConfiguration<TestMultiTenantDbContext> configuration = new()
         {
             Strategy = MultiTenantStrategy.Discriminator,
             DiscriminatorConfiguration = null // Null configuration
         };
 
-        MultiTenantDbContextFactory<TestDbContext> factory = new(
+        MultiTenantDbContextFactory<TestMultiTenantDbContext> factory = new(
             _serviceProvider, _mockTenantStore.Object, configuration);
 
         // Act & Assert
         // This should not throw, but the context might not be properly configured
         // The test verifies that null configuration is handled gracefully
-        using TestDbContext context = factory.CreateDbContext(tenantId);
+        using TestMultiTenantDbContext context = factory.CreateDbContext(tenantId);
         Assert.NotNull(context);
     }
 

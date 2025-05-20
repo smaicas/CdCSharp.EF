@@ -1,7 +1,7 @@
 ﻿using CdCSharp.EF.Core.Abstractions;
 using Microsoft.EntityFrameworkCore;
 
-namespace CdCSharp.EF.Core;
+namespace CdCSharp.EF.Configuration;
 
 public class MultiTenantConfiguration<TContext> where TContext : DbContext
 {

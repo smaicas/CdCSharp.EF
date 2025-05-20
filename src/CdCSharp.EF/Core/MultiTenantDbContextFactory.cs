@@ -1,4 +1,5 @@
-﻿using CdCSharp.EF.Core.Abstractions;
+﻿using CdCSharp.EF.Configuration;
+using CdCSharp.EF.Core.Abstractions;
 using Microsoft.EntityFrameworkCore;
 
 namespace CdCSharp.EF.Core;

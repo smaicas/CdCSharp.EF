@@ -1,5 +1,6 @@
 ﻿using CdCSharp.EF.Core;
 using CdCSharp.EF.Core.Abstractions;
+using CdCSharp.EF.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
@@ -8,7 +9,7 @@ namespace CdCSharp.EF.UnitTests;
 
 public class MultiTenantDbContextTests : IDisposable
 {
-    private readonly TestDbContext _context;
+    private readonly TestMultiTenantDbContext _context;
     private readonly Mock<ITenantStore> _mockTenantStore;
     private readonly ServiceProvider _serviceProvider;
 
@@ -18,13 +19,16 @@ public class MultiTenantDbContextTests : IDisposable
 
         ServiceCollection services = new();
         services.AddSingleton(_mockTenantStore.Object);
+        // Registrar features por defecto
+        services.AddSingleton(DbContextFeatures.Default);
         _serviceProvider = services.BuildServiceProvider();
 
-        DbContextOptions<TestDbContext> options = new DbContextOptionsBuilder<TestDbContext>()
+        DbContextOptions<TestMultiTenantDbContext> options = new DbContextOptionsBuilder<TestMultiTenantDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
 
-        _context = new TestDbContext(options, _serviceProvider);
+        // Pasar features y procesadores (vacíos por defecto)
+        _context = new TestMultiTenantDbContext(options, _serviceProvider);
     }
 
     [Fact]
@@ -209,17 +213,26 @@ public class MultiTenantDbContextTests : IDisposable
 }
 
 // Test classes
-public class TestDbContext : MultiTenantDbContext
+public class TestExtensibleDbContext : ExtensibleDbContext
 {
-    public TestDbContext(DbContextOptions<TestDbContext> options, IServiceProvider serviceProvider)
+    public TestExtensibleDbContext(DbContextOptions<TestExtensibleDbContext> options,
+        IServiceProvider serviceProvider)
         : base(options, serviceProvider)
     {
     }
 
     public DbSet<TestProduct> Products { get; set; } = null!;
+}
 
-    // Make SetTenantId public for testing
-    public new void SetTenantId(string tenantId) => base.SetTenantId(tenantId);
+public class TestMultiTenantDbContext : MultiTenantDbContext
+{
+    public TestMultiTenantDbContext(DbContextOptions<TestMultiTenantDbContext> options,
+        IServiceProvider serviceProvider)
+        : base(options, serviceProvider)
+    {
+    }
+
+    public DbSet<TestProduct> Products { get; set; } = null!;
 }
 
 public class TestProduct : ITenantEntity

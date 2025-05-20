@@ -5,16 +5,14 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CdCSharp.EF.Core;
 
-public abstract class MultiTenantDbContext : DbContext
+public abstract class MultiTenantDbContext : ExtensibleDbContext
 {
     private string? _tenantId;
     private readonly ITenantStore _tenantStore;
 
-    protected MultiTenantDbContext(DbContextOptions options, ITenantStore tenantStore)
-        : base(options) => _tenantStore = tenantStore;
-
-    protected MultiTenantDbContext(DbContextOptions options, IServiceProvider serviceProvider)
-        : base(options) => _tenantStore = serviceProvider.GetRequiredService<ITenantStore>();
+    protected MultiTenantDbContext(
+        DbContextOptions options,
+        IServiceProvider serviceProvider) : base(options, serviceProvider) => _tenantStore = serviceProvider.GetRequiredService<ITenantStore>();
 
     public string? CurrentTenantId => _tenantId ?? _tenantStore.GetCurrentTenantId();
 
@@ -22,9 +20,9 @@ public abstract class MultiTenantDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        base.OnModelCreating(modelBuilder);
+        base.OnModelCreating(modelBuilder); // Aplica las features
 
-        // Apply filters
+        // Apply tenant filters
         foreach (Microsoft.EntityFrameworkCore.Metadata.IMutableEntityType entityType in modelBuilder.Model.GetEntityTypes())
         {
             if (typeof(ITenantEntity).IsAssignableFrom(entityType.ClrType))
@@ -40,18 +38,19 @@ public abstract class MultiTenantDbContext : DbContext
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
 
     private void SetTenantFilter<TEntity>(ModelBuilder modelBuilder)
-        where TEntity : class, ITenantEntity => modelBuilder.Entity<TEntity>().HasQueryFilter(e => e.TenantId == CurrentTenantId);
+        where TEntity : class, ITenantEntity =>
+        modelBuilder.Entity<TEntity>().HasQueryFilter(e => e.TenantId == CurrentTenantId);
 
     public override int SaveChanges()
     {
         SetTenantIdOnEntities();
-        return base.SaveChanges();
+        return base.SaveChanges(); // Aplica las features
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         SetTenantIdOnEntities();
-        return await base.SaveChangesAsync(cancellationToken);
+        return await base.SaveChangesAsync(cancellationToken); // Aplica las features
     }
 
     private void SetTenantIdOnEntities()

@@ -139,3 +139,73 @@ public class OrdersController : ControllerBase
         return CreatedAtAction(nameof(GetOrder), new { id = order.Id }, order);
     }
 }
+
+[ApiController]
+[Route("api/simple-products")]
+public class ProductAuditableWithUserController : ControllerBase
+{
+    private readonly SimpleDbContext _context;
+
+    public ProductAuditableWithUserController(SimpleDbContext context) => _context = context;
+
+    [HttpGet]
+    public async Task<IActionResult> GetProducts()
+    {
+        List<ProductAuditableWithUser> products = await _context.Products.ToListAsync();
+        return Ok(products);
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetProduct(int id)
+    {
+        ProductAuditableWithUser? product = await _context.Products.FindAsync(id);
+        if (product == null)
+            return NotFound();
+
+        return Ok(product);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> CreateProduct([FromBody] CreateProductAuditableWithUserRequest request)
+    {
+        ProductAuditableWithUser product = new()
+        {
+            Name = request.Name,
+            Price = request.Price,
+            Category = request.Category
+        };
+
+        _context.Products.Add(product);
+        await _context.SaveChangesAsync();
+
+        return CreatedAtAction(nameof(GetProduct), new { id = product.Id }, product);
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateProduct(int id, [FromBody] CreateProductAuditableWithUserRequest request)
+    {
+        ProductAuditableWithUser? product = await _context.Products.FindAsync(id);
+        if (product == null)
+            return NotFound();
+
+        product.Name = request.Name;
+        product.Price = request.Price;
+        product.Category = request.Category;
+
+        await _context.SaveChangesAsync();
+        return Ok(product);
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteProduct(int id)
+    {
+        ProductAuditableWithUser? product = await _context.Products.FindAsync(id);
+        if (product == null)
+            return NotFound();
+
+        _context.Products.Remove(product);
+        await _context.SaveChangesAsync();
+
+        return NoContent();
+    }
+}
