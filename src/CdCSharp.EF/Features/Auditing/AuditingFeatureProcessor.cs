@@ -1,29 +1,29 @@
-﻿using CdCSharp.EF.Configuration;
-using CdCSharp.EF.Core.Abstractions;
+﻿using CdCSharp.EF.Core.Abstractions;
 using CdCSharp.EF.Features.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
 
-namespace CdCSharp.EF.Features;
+namespace CdCSharp.EF.Features.Auditing;
 
-public class AuditingProcessor : IFeatureProcessor
+public class AuditingFeatureProcessor : IFeatureProcessor
 {
     private readonly AuditingConfiguration _auditingConfiguration;
     private readonly IServiceProvider _serviceProvider;
 
-    public AuditingProcessor(AuditingConfiguration auditingConfiguration, IServiceProvider serviceProvider)
+    public AuditingFeatureProcessor(AuditingConfiguration auditingConfiguration, IServiceProvider serviceProvider)
     {
         _auditingConfiguration = auditingConfiguration;
         _serviceProvider = serviceProvider;
     }
+    public void OnModelCreating(ModelBuilder modelBuilder) { }
 
-    public void OnModelCreating(ModelBuilder modelBuilder, Type entityType)
+    public void OnModelCreatingEntity(ModelBuilder modelBuilder, Type entityType)
     {
         if (typeof(IAuditableEntity).IsAssignableFrom(entityType))
         {
-            MethodInfo method = typeof(AuditingProcessor)
+            MethodInfo method = typeof(AuditingFeatureProcessor)
                 .GetMethod(nameof(ConfigureAuditing), BindingFlags.NonPublic | BindingFlags.Instance)!
                 .MakeGenericMethod(entityType);
             method.Invoke(this, new object[] { modelBuilder });
@@ -51,7 +51,6 @@ public class AuditingProcessor : IFeatureProcessor
         string? currentUserId = GetCurrentUserId();
 
         foreach (EntityEntry<IAuditableEntity> entry in changeTracker.Entries<IAuditableEntity>())
-        {
             switch (entry.State)
             {
                 case EntityState.Added:
@@ -59,21 +58,16 @@ public class AuditingProcessor : IFeatureProcessor
                     entry.Entity.LastModifiedDate = now;
 
                     if (entry.Entity is IAuditableWithUserEntity userAuditable)
-                    {
                         HandleUserField(userAuditable, currentUserId, isCreation: true);
-                    }
                     break;
 
                 case EntityState.Modified:
                     entry.Entity.LastModifiedDate = now;
 
                     if (entry.Entity is IAuditableWithUserEntity userAuditable2)
-                    {
                         HandleUserField(userAuditable2, currentUserId, isCreation: false);
-                    }
                     break;
             }
-        }
     }
 
     private string? GetCurrentUserId()
@@ -92,9 +86,7 @@ public class AuditingProcessor : IFeatureProcessor
                 entity.ModifiedBy = currentUserId;
             }
             else
-            {
                 entity.ModifiedBy = currentUserId;
-            }
             return;
         }
 
@@ -111,9 +103,7 @@ public class AuditingProcessor : IFeatureProcessor
                     entity.ModifiedBy = _auditingConfiguration.DefaultUserId;
                 }
                 else
-                {
                     entity.ModifiedBy = _auditingConfiguration.DefaultUserId;
-                }
                 break;
 
             case AuditingBehavior.SaveAsNull:
@@ -123,13 +113,12 @@ public class AuditingProcessor : IFeatureProcessor
                     entity.ModifiedBy = null;
                 }
                 else
-                {
                     entity.ModifiedBy = null;
-                }
                 break;
 
             case AuditingBehavior.SkipUserFields:
                 break;
         }
     }
+
 }

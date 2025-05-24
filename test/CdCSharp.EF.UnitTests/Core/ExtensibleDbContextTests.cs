@@ -23,11 +23,19 @@ public class ExtensibleDbContextTests : IDisposable
         Mock<IFeatureProcessor> mockProcessor2 = new(MockBehavior.Strict);
 
         mockProcessor1
-            .Setup(p => p.OnModelCreating(It.IsAny<ModelBuilder>(), It.IsAny<Type>()))
+            .Setup(p => p.OnModelCreating(It.IsAny<ModelBuilder>()))
             .Verifiable();
 
         mockProcessor2
-            .Setup(p => p.OnModelCreating(It.IsAny<ModelBuilder>(), It.IsAny<Type>()))
+            .Setup(p => p.OnModelCreating(It.IsAny<ModelBuilder>()))
+            .Verifiable();
+
+        mockProcessor1
+            .Setup(p => p.OnModelCreatingEntity(It.IsAny<ModelBuilder>(), It.IsAny<Type>()))
+            .Verifiable();
+
+        mockProcessor2
+            .Setup(p => p.OnModelCreatingEntity(It.IsAny<ModelBuilder>(), It.IsAny<Type>()))
             .Verifiable();
 
         mockProcessor1
@@ -46,7 +54,7 @@ public class ExtensibleDbContextTests : IDisposable
         };
 
         // Registrar features por defecto
-        services.AddSingleton(DbContextFeatures.Default);
+        services.AddSingleton(new DbContextFeatures());
 
         // Registrar los mocks como servicios
         foreach (Mock<IFeatureProcessor> mockProcessor in _mockProcessors)

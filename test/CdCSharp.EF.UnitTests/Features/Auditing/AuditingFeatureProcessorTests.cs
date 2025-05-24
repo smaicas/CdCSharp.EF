@@ -1,20 +1,19 @@
-﻿using CdCSharp.EF.Configuration;
-using CdCSharp.EF.Core.Abstractions;
-using CdCSharp.EF.Features;
+﻿using CdCSharp.EF.Core.Abstractions;
+using CdCSharp.EF.Features.Auditing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
-namespace CdCSharp.EF.UnitTests.Features;
+namespace CdCSharp.EF.UnitTests.Features.Auditing;
 
-public class AuditingProcessorTests : IDisposable
+public class AuditingFeatureProcessorTests : IDisposable
 {
     private readonly AuditingProcessorTests_DbContext _context;
-    private readonly AuditingProcessor _processor;
+    private readonly AuditingFeatureProcessor _processor;
     private readonly Mock<ICurrentUserStore> _mockUserStore;
     private readonly ServiceProvider _serviceProvider;
 
-    public AuditingProcessorTests()
+    public AuditingFeatureProcessorTests()
     {
         _mockUserStore = new Mock<ICurrentUserStore>();
 
@@ -27,7 +26,7 @@ public class AuditingProcessorTests : IDisposable
             .Options;
 
         _context = new AuditingProcessorTests_DbContext(options);
-        _processor = new AuditingProcessor(AuditingConfiguration.Default, _serviceProvider);
+        _processor = new AuditingFeatureProcessor(new(), _serviceProvider);
     }
 
     [Fact]
@@ -87,8 +86,12 @@ public class AuditingProcessorTests : IDisposable
     public void OnSaveChanges_WhenNoUserAndThrowOnMissingUser_ThrowsException()
     {
         // Arrange
-        AuditingConfiguration config = AuditingConfiguration.ThrowOnMissingUser;
-        AuditingProcessor processor = new(config, _serviceProvider);
+        AuditingConfiguration config = new()
+        {
+            BehaviorWhenNoUser = AuditingBehavior.ThrowException
+        };
+
+        AuditingFeatureProcessor processor = new(config, _serviceProvider);
         _mockUserStore.Setup(s => s.GetCurrentUserId()).Returns((string?)null);
 
         AuditingProcessorTests_AuditableWithUserEntity entity = new() { Name = "Test" };
@@ -105,8 +108,13 @@ public class AuditingProcessorTests : IDisposable
     public void OnSaveChanges_WhenNoUserAndUseDefaultUser_UsesDefaultUser()
     {
         // Arrange
-        AuditingConfiguration config = AuditingConfiguration.UseSystemUser("SYSTEM");
-        AuditingProcessor processor = new(config, _serviceProvider);
+        AuditingConfiguration config = new()
+        {
+            BehaviorWhenNoUser = AuditingBehavior.UseDefaultUser,
+            DefaultUserId = "SYSTEM",
+        };
+
+        AuditingFeatureProcessor processor = new(config, _serviceProvider);
         _mockUserStore.Setup(s => s.GetCurrentUserId()).Returns((string?)null);
 
         AuditingProcessorTests_AuditableWithUserEntity entity = new() { Name = "Test" };
@@ -125,7 +133,7 @@ public class AuditingProcessorTests : IDisposable
     {
         // Arrange
         AuditingConfiguration config = new() { BehaviorWhenNoUser = AuditingBehavior.SaveAsNull };
-        AuditingProcessor processor = new(config, _serviceProvider);
+        AuditingFeatureProcessor processor = new(config, _serviceProvider);
         _mockUserStore.Setup(s => s.GetCurrentUserId()).Returns((string?)null);
 
         AuditingProcessorTests_AuditableWithUserEntity entity = new() { Name = "Test" };
@@ -143,8 +151,12 @@ public class AuditingProcessorTests : IDisposable
     public void OnSaveChanges_WhenNoUserAndSkipUserFields_DoesNotModifyUserFields()
     {
         // Arrange
-        AuditingConfiguration config = AuditingConfiguration.SkipUserFields;
-        AuditingProcessor processor = new(config, _serviceProvider);
+        AuditingConfiguration config = new()
+        {
+            BehaviorWhenNoUser = AuditingBehavior.SkipUserFields
+        };
+
+        AuditingFeatureProcessor processor = new(config, _serviceProvider);
         _mockUserStore.Setup(s => s.GetCurrentUserId()).Returns((string?)null);
 
         AuditingProcessorTests_AuditableWithUserEntity entity = new()

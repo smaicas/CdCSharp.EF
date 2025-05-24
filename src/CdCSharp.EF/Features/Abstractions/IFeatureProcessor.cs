@@ -5,6 +5,7 @@ namespace CdCSharp.EF.Features.Abstractions;
 
 public interface IFeatureProcessor
 {
-    void OnModelCreating(ModelBuilder modelBuilder, Type entityType);
+    void OnModelCreating(ModelBuilder modelBuilder);
+    void OnModelCreatingEntity(ModelBuilder modelBuilder, Type entityType);
     void OnSaveChanges(ChangeTracker changeTracker);
 }

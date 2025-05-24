@@ -1,6 +1,6 @@
-﻿using CdCSharp.EF.Configuration;
-using CdCSharp.EF.Core.Abstractions;
+﻿using CdCSharp.EF.Core.Abstractions;
 using CdCSharp.EF.Extensions;
+using CdCSharp.EF.Features.Auditing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;

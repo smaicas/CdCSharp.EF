@@ -6,6 +6,8 @@ using CdCSharp.EF.Core.Stores;
 using CdCSharp.EF.Extensions;
 using CdCSharp.EF.Features;
 using CdCSharp.EF.Features.Abstractions;
+using CdCSharp.EF.Features.Auditing;
+using CdCSharp.EF.Features.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -302,6 +304,152 @@ public class ServiceCollectionExtensionsTests
         ServiceDescriptor contextDescriptor = services.First(s => s.ServiceType == typeof(ServiceCollectionExtensionsTests_MultiTenantDbContext));
         Assert.Equal(ServiceLifetime.Scoped, contextDescriptor.Lifetime);
     }
+
+    [Fact]
+    public void AddExtensibleDbContext_WithIdentityFeature_ShouldRegisterIdentityProcessor()
+    {
+        // Arrange
+        ServiceCollection services = new();
+
+        // Act
+        services.AddExtensibleDbContext<ServiceCollectionExtensionsTests_ExtensibleDbContext>(
+            options => options.UseInMemoryDatabase("test-db"),
+            features => features.EnableIdentity<Guid>()
+        );
+
+        ServiceProvider serviceProvider = services.BuildServiceProvider();
+
+        // Assert
+        DbContextFeatures? dbFeatures = serviceProvider.GetService<DbContextFeatures>();
+        Assert.NotNull(dbFeatures);
+        Assert.True(dbFeatures.Identity.Enabled);
+
+        // Verificar que hay procesadores registrados incluyendo Identity
+        IEnumerable<IFeatureProcessor> processors = serviceProvider.GetServices<IFeatureProcessor>();
+        Assert.Contains(processors, p => p is IdentityFeatureProcessor);
+
+        serviceProvider.Dispose();
+    }
+
+    [Fact]
+    public void AddMultiTenantByDatabaseDbContext_WithIdentityFeature_ShouldRegisterIdentityProcessor()
+    {
+        // Arrange
+        ServiceCollection services = new();
+
+        // Act
+        services.AddMultiTenantByDatabaseDbContext<ServiceCollectionExtensionsTests_MultiTenantDbContext>(
+            tenants => tenants
+                .AddTenant("tenant1", options => options.UseInMemoryDatabase("tenant1-db")),
+            features => features.EnableIdentity<Guid>()
+        );
+
+        ServiceProvider serviceProvider = services.BuildServiceProvider();
+
+        // Set a tenant before checking features
+        IWritableTenantStore? tenantStore = serviceProvider.GetRequiredService<ITenantStore>() as IWritableTenantStore;
+        tenantStore!.SetCurrentTenantId("tenant1");
+
+        // Assert
+        DbContextFeatures? dbFeatures = serviceProvider.GetService<DbContextFeatures>();
+        Assert.NotNull(dbFeatures);
+        Assert.True(dbFeatures.Identity.Enabled);
+
+        // Verificar que hay procesadores registrados incluyendo Identity
+        IEnumerable<IFeatureProcessor> processors = serviceProvider.GetServices<IFeatureProcessor>();
+        Assert.Contains(processors, p => p is IdentityFeatureProcessor);
+
+        serviceProvider.Dispose();
+    }
+
+    [Fact]
+    public void AddMultiTenantByDiscriminatorDbContext_WithIdentityFeature_ShouldRegisterIdentityProcessor()
+    {
+        // Arrange
+        ServiceCollection services = new();
+
+        // Act
+        services.AddMultiTenantByDiscriminatorDbContext<ServiceCollectionExtensionsTests_MultiTenantDbContext>(
+            options => options.UseInMemoryDatabase("test-db"),
+            features => features.EnableIdentity<Guid>()
+        );
+
+        ServiceProvider serviceProvider = services.BuildServiceProvider();
+
+        // Set a tenant before checking features
+        IWritableTenantStore? tenantStore = serviceProvider.GetRequiredService<ITenantStore>() as IWritableTenantStore;
+        tenantStore!.SetCurrentTenantId("test-tenant");
+
+        // Assert
+        DbContextFeatures? dbFeatures = serviceProvider.GetService<DbContextFeatures>();
+        Assert.NotNull(dbFeatures);
+        Assert.True(dbFeatures.Identity.Enabled);
+
+        // Verificar que hay procesadores registrados incluyendo Identity
+        IEnumerable<IFeatureProcessor> processors = serviceProvider.GetServices<IFeatureProcessor>();
+        Assert.Contains(processors, p => p is IdentityFeatureProcessor);
+
+        serviceProvider.Dispose();
+    }
+
+    [Fact]
+    public void AddExtensibleDbContext_WithBothAuditingAndIdentity_ShouldRegisterBothProcessors()
+    {
+        // Arrange
+        ServiceCollection services = new();
+
+        // Act
+        services.AddExtensibleDbContext<ServiceCollectionExtensionsTests_ExtensibleDbContext>(
+            options => options.UseInMemoryDatabase("test-db"),
+            features => features
+                .EnableAuditing()
+                .EnableIdentity<Guid>()
+        );
+
+        ServiceProvider serviceProvider = services.BuildServiceProvider();
+
+        // Assert
+        DbContextFeatures? dbFeatures = serviceProvider.GetService<DbContextFeatures>();
+        Assert.NotNull(dbFeatures);
+        Assert.True(dbFeatures.Auditing.Enabled);
+        Assert.True(dbFeatures.Identity.Enabled);
+
+        // Verificar que hay procesadores registrados para ambas features
+        IEnumerable<IFeatureProcessor> processors = serviceProvider.GetServices<IFeatureProcessor>();
+        Assert.Contains(processors, p => p is AuditingFeatureProcessor);
+        Assert.Contains(processors, p => p is IdentityFeatureProcessor);
+
+        serviceProvider.Dispose();
+    }
+
+    [Fact]
+    public void AddExtensibleDbContext_WithIdentityDisabled_ShouldNotRegisterIdentityProcessor()
+    {
+        // Arrange
+        ServiceCollection services = new();
+
+        // Act
+        services.AddExtensibleDbContext<ServiceCollectionExtensionsTests_ExtensibleDbContext>(
+            options => options.UseInMemoryDatabase("test-db"),
+            features => features.EnableAuditing() // Solo auditing, no identity
+        );
+
+        ServiceProvider serviceProvider = services.BuildServiceProvider();
+
+        // Assert
+        DbContextFeatures? dbFeatures = serviceProvider.GetService<DbContextFeatures>();
+        Assert.NotNull(dbFeatures);
+        Assert.True(dbFeatures.Auditing.Enabled);
+        Assert.False(dbFeatures.Identity.Enabled);
+
+        // Verificar que solo hay procesador de auditing
+        IEnumerable<IFeatureProcessor> processors = serviceProvider.GetServices<IFeatureProcessor>();
+        Assert.Contains(processors, p => p is AuditingFeatureProcessor);
+        Assert.DoesNotContain(processors, p => p is IdentityFeatureProcessor);
+
+        serviceProvider.Dispose();
+    }
+
     internal class ServiceCollectionExtensionsTests_TenantResolver : ITenantResolver
     {
         public Task<string?> ResolveTenantIdAsync() => Task.FromResult<string?>("custom-tenant");

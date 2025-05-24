@@ -5,6 +5,8 @@ using CdCSharp.EF.Core.Resolvers;
 using CdCSharp.EF.Core.Stores;
 using CdCSharp.EF.Features;
 using CdCSharp.EF.Features.Abstractions;
+using CdCSharp.EF.Features.Auditing;
+using CdCSharp.EF.Features.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,54 +14,69 @@ namespace CdCSharp.EF.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    // Método para contextos simples con features
+    /// <summary>
+    /// Adds extensible by features DbContext
+    /// </summary>
+    /// <typeparam name="TContext"></typeparam>
+    /// <param name="services"></param>
+    /// <param name="configureOptions"></param>
+    /// <param name="featuresBuilder"></param>
+    /// <returns></returns>
     public static IServiceCollection AddExtensibleDbContext<TContext>(
         this IServiceCollection services,
         Action<DbContextOptionsBuilder> configureOptions,
         Func<DbContextFeaturesBuilder, DbContextFeaturesBuilder>? featuresBuilder = null)
         where TContext : ExtensibleDbContext
     {
-        // Configurar features
+        // Configure features
         DbContextFeatures features = featuresBuilder?.Invoke(new DbContextFeaturesBuilder()).Build() ?? DbContextFeatures.Default;
         services.AddSingleton(features);
 
-        // Registrar procesadores basándose en las features habilitadas
+        // Register processors based on enabled features
         RegisterFeatureProcessors(services, features);
 
-        // Configurar current user services por defecto si no se han registrado previamente
+        // Configure required services
         if (!services.Any(s => s.ServiceType == typeof(ICurrentUserStore)))
         {
             services.AddScoped<ICurrentUserStore, InMemoryCurrentUserStore>();
             services.AddScoped<ICurrentUserResolver, ClaimsCurrentUserResolver>();
         }
 
-        // Configurar EF DbContext
+        // Configure DBContext
         services.AddDbContext<TContext>(configureOptions);
 
         return services;
     }
 
+    /// <summary>
+    /// Adds Multi-Tenant by discriminator and Extensible DbContext
+    /// </summary>
+    /// <typeparam name="TContext"></typeparam>
+    /// <param name="services"></param>
+    /// <param name="configureOptions"></param>
+    /// <param name="featuresBuilder"></param>
+    /// <returns></returns>
     public static IServiceCollection AddMultiTenantByDiscriminatorDbContext<TContext>(
     this IServiceCollection services,
     Action<DbContextOptionsBuilder<TContext>> configureOptions,
     Func<DbContextFeaturesBuilder, DbContextFeaturesBuilder>? featuresBuilder = null)
     where TContext : MultiTenantDbContext
     {
-        // Configurar features
+        // Configure features
         DbContextFeatures features = featuresBuilder?.Invoke(new DbContextFeaturesBuilder()).Build() ?? DbContextFeatures.Default;
         services.AddSingleton(features);
 
-        // Registrar procesadores basándose en las features habilitadas
+        // Register processors based on enabled features
         RegisterFeatureProcessors(services, features);
 
-        // Configurar current user services por defecto si no se han registrado previamente
+        // Configure required services
         if (!services.Any(s => s.ServiceType == typeof(ICurrentUserStore)))
         {
             services.AddScoped<ICurrentUserStore, InMemoryCurrentUserStore>();
             services.AddScoped<ICurrentUserResolver, ClaimsCurrentUserResolver>();
         }
 
-        // Configurar servicios multi-tenant
+        // Configure multi-tenant services
         services.AddScoped<ITenantStore, InMemoryTenantStore>();
         services.AddScoped<ITenantResolver, HttpHeaderTenantResolver>();
 
@@ -80,7 +97,15 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    // Método para contextos multi-tenant con features
+    /// <summary>
+    /// Adds Multi-Tenant by database and Extensible DbContext
+    /// </summary>
+    /// <typeparam name="TContext"></typeparam>
+    /// <param name="services"></param>
+    /// <param name="buildTenants"></param>
+    /// <param name="featuresBuilder"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
     public static IServiceCollection AddMultiTenantByDatabaseDbContext<TContext>(
         this IServiceCollection services,
         Action<MultiTenantByDatabaseBuilder<TContext>> buildTenants,
@@ -94,30 +119,30 @@ public static class ServiceCollectionExtensions
         if (!tenantConfigurations.Any())
             throw new ArgumentException("At least one tenant configuration is required.", nameof(buildTenants));
 
-        // Configurar features
+        // Configure features
         DbContextFeatures features = featuresBuilder?.Invoke(new DbContextFeaturesBuilder()).Build() ?? DbContextFeatures.Default;
         services.AddSingleton(features);
 
-        // Registrar procesadores basándose en las features habilitadas
+        // Register processors based on enabled features
         RegisterFeatureProcessors(services, features);
 
-        // Configurar servicios multi-tenant
-        services.AddScoped<ITenantStore, InMemoryTenantStore>();
-        services.AddScoped<ITenantResolver, HttpHeaderTenantResolver>();
-
-        // Configurar current user services por defecto si no se han registrado previamente
+        // Configure required services
         if (!services.Any(s => s.ServiceType == typeof(ICurrentUserStore)))
         {
             services.AddScoped<ICurrentUserStore, InMemoryCurrentUserStore>();
             services.AddScoped<ICurrentUserResolver, ClaimsCurrentUserResolver>();
         }
 
+        // Configure multi-tenant services
+        services.AddScoped<ITenantStore, InMemoryTenantStore>();
+        services.AddScoped<ITenantResolver, HttpHeaderTenantResolver>();
+
         MultiTenantConfiguration<TContext> configuration = new()
         {
             Strategy = MultiTenantStrategy.Database
         };
 
-        // Añadir todas las configuraciones de tenants
+        // Add all tenant configurations
         foreach ((string tenantId, Action<DbContextOptionsBuilder<TContext>> configureOptions) in tenantConfigurations)
         {
             configuration.DatabaseConfigurations[tenantId] = configureOptions;
@@ -136,17 +161,17 @@ public static class ServiceCollectionExtensions
 
     private static void RegisterFeatureProcessors(IServiceCollection services, DbContextFeatures features)
     {
-        if (features.AuditingEnabled)
+        if (features.Auditing.Enabled)
         {
-            services.AddScoped<IFeatureProcessor, AuditingProcessor>(provider =>
-                new AuditingProcessor(features.AuditingConfiguration, provider));
+            services.AddScoped<IFeatureProcessor, AuditingFeatureProcessor>(provider =>
+                new AuditingFeatureProcessor(features.Auditing.Configuration, provider));
         }
 
-        // Aquí se pueden agregar más procesadores en el futuro
-        // if (features.SoftDeleteEnabled)
-        // {
-        //     services.AddScoped<IFeatureProcessor, SoftDeleteProcessor>(...);
-        // }
+        if (features.Identity.Enabled)
+        {
+            services.AddScoped<IFeatureProcessor, IdentityFeatureProcessor>(provider =>
+                new IdentityFeatureProcessor(features.Identity, provider));
+        }
     }
 
     public static IServiceCollection AddCustomTenantResolver<TResolver>(this IServiceCollection services)

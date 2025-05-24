@@ -20,9 +20,9 @@ public abstract class MultiTenantDbContext : ExtensibleDbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        base.OnModelCreating(modelBuilder); // Aplica las features
+        base.OnModelCreating(modelBuilder);
 
-        // Apply tenant filters
+        // Apply tenant filter
         foreach (Microsoft.EntityFrameworkCore.Metadata.IMutableEntityType entityType in modelBuilder.Model.GetEntityTypes())
         {
             if (typeof(ITenantEntity).IsAssignableFrom(entityType.ClrType))
@@ -44,13 +44,13 @@ public abstract class MultiTenantDbContext : ExtensibleDbContext
     public override int SaveChanges()
     {
         SetTenantIdOnEntities();
-        return base.SaveChanges(); // Aplica las features
+        return base.SaveChanges();
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         SetTenantIdOnEntities();
-        return await base.SaveChangesAsync(cancellationToken); // Aplica las features
+        return await base.SaveChangesAsync(cancellationToken);
     }
 
     private void SetTenantIdOnEntities()

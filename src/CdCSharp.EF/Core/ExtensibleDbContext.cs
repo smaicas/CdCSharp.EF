@@ -16,12 +16,17 @@ public abstract class ExtensibleDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        foreach (IFeatureProcessor processor in _processors)
+        {
+            processor.OnModelCreating(modelBuilder);
+        }
+
         // Aplicar las features
         foreach (Microsoft.EntityFrameworkCore.Metadata.IMutableEntityType entityType in modelBuilder.Model.GetEntityTypes())
         {
             foreach (IFeatureProcessor processor in _processors)
             {
-                processor.OnModelCreating(modelBuilder, entityType.ClrType);
+                processor.OnModelCreatingEntity(modelBuilder, entityType.ClrType);
             }
         }
     }
