@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CdCSharp.EF.IntegrationTests.Int_MultiTenantByDatabaseWithIdentity;
 
-public class MultiTenantByDatabaseWithIdentity_DbContext : MultiTenantDbContext
+public class MultiTenantByDatabaseWithIdentity_DbContext : ExtensibleDbContext
 {
     public MultiTenantByDatabaseWithIdentity_DbContext(
         DbContextOptions<MultiTenantByDatabaseWithIdentity_DbContext> options,

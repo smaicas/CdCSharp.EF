@@ -1,6 +1,6 @@
-﻿using CdCSharp.EF.Configuration;
-using CdCSharp.EF.Core;
+﻿using CdCSharp.EF.Core;
 using CdCSharp.EF.Core.Abstractions;
+using CdCSharp.EF.Features.MultiTenant;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
@@ -17,7 +17,7 @@ public class MultiTenantDbContextFactoryTests : IDisposable
         _mockTenantStore = new Mock<ITenantStore>();
 
         ServiceCollection services = new();
-        services.AddSingleton(_mockTenantStore.Object);
+        services.AddScoped(s => _mockTenantStore.Object);
         _serviceProvider = services.BuildServiceProvider();
     }
 
@@ -28,7 +28,7 @@ public class MultiTenantDbContextFactoryTests : IDisposable
         const string tenantId = "tenant1";
         _mockTenantStore.Setup(s => s.GetCurrentTenantId()).Returns(tenantId);
 
-        MultiTenantConfiguration<MultiTenantDbContextFactoryTests_MultiTenantDbContext> configuration = new()
+        MultiTenantConfiguration configuration = new()
         {
             Strategy = MultiTenantStrategy.Discriminator,
             DiscriminatorConfiguration = options => options.UseInMemoryDatabase("test-db")
@@ -50,8 +50,9 @@ public class MultiTenantDbContextFactoryTests : IDisposable
     {
         // Arrange
         const string tenantId = "tenant1";
+        _mockTenantStore.Setup(s => s.GetCurrentTenantId()).Returns(tenantId);
 
-        MultiTenantConfiguration<MultiTenantDbContextFactoryTests_MultiTenantDbContext> configuration = new()
+        MultiTenantConfiguration configuration = new()
         {
             Strategy = MultiTenantStrategy.Discriminator,
             DiscriminatorConfiguration = options => options.UseInMemoryDatabase("test-db")
@@ -74,10 +75,10 @@ public class MultiTenantDbContextFactoryTests : IDisposable
         // Arrange
         const string tenantId = "tenant1";
 
-        MultiTenantConfiguration<MultiTenantDbContextFactoryTests_MultiTenantDbContext> configuration = new()
+        MultiTenantConfiguration configuration = new()
         {
             Strategy = MultiTenantStrategy.Database,
-            DatabaseConfigurations = new Dictionary<string, Action<DbContextOptionsBuilder<MultiTenantDbContextFactoryTests_MultiTenantDbContext>>>
+            DatabaseConfigurations = new Dictionary<string, Action<DbContextOptionsBuilder>>
         {
             {
                 tenantId,
@@ -102,10 +103,10 @@ public class MultiTenantDbContextFactoryTests : IDisposable
         // Arrange
         const string tenantId = "missing-tenant";
 
-        MultiTenantConfiguration<MultiTenantDbContextFactoryTests_MultiTenantDbContext> configuration = new()
+        MultiTenantConfiguration configuration = new()
         {
             Strategy = MultiTenantStrategy.Database,
-            DatabaseConfigurations = new Dictionary<string, Action<DbContextOptionsBuilder<MultiTenantDbContextFactoryTests_MultiTenantDbContext>>>()
+            DatabaseConfigurations = new Dictionary<string, Action<DbContextOptionsBuilder>>()
         };
 
         MultiTenantDbContextFactory<MultiTenantDbContextFactoryTests_MultiTenantDbContext> factory = new(
@@ -122,7 +123,7 @@ public class MultiTenantDbContextFactoryTests : IDisposable
         // Arrange
         _mockTenantStore.Setup(s => s.GetCurrentTenantId()).Returns((string?)null);
 
-        MultiTenantConfiguration<MultiTenantDbContextFactoryTests_MultiTenantDbContext> configuration = new()
+        MultiTenantConfiguration configuration = new()
         {
             Strategy = MultiTenantStrategy.Discriminator,
             DiscriminatorConfiguration = options => options.UseInMemoryDatabase("test-db")
@@ -142,7 +143,7 @@ public class MultiTenantDbContextFactoryTests : IDisposable
         // Arrange
         _mockTenantStore.Setup(s => s.GetCurrentTenantId()).Returns(string.Empty);
 
-        MultiTenantConfiguration<MultiTenantDbContextFactoryTests_MultiTenantDbContext> configuration = new()
+        MultiTenantConfiguration configuration = new()
         {
             Strategy = MultiTenantStrategy.Discriminator,
             DiscriminatorConfiguration = options => options.UseInMemoryDatabase("test-db")
@@ -163,10 +164,10 @@ public class MultiTenantDbContextFactoryTests : IDisposable
         const string tenant1 = "tenant1";
         const string tenant2 = "tenant2";
 
-        MultiTenantConfiguration<MultiTenantDbContextFactoryTests_MultiTenantDbContext> configuration = new()
+        MultiTenantConfiguration configuration = new()
         {
             Strategy = MultiTenantStrategy.Database,
-            DatabaseConfigurations = new Dictionary<string, Action<DbContextOptionsBuilder<MultiTenantDbContextFactoryTests_MultiTenantDbContext>>>
+            DatabaseConfigurations = new Dictionary<string, Action<DbContextOptionsBuilder>>
         {
             { tenant1, options => options.UseInMemoryDatabase($"db-{tenant1}") },
             { tenant2, options => options.UseInMemoryDatabase($"db-{tenant2}") }
@@ -192,7 +193,7 @@ public class MultiTenantDbContextFactoryTests : IDisposable
         // Arrange
         const string tenantId = "tenant1";
 
-        MultiTenantConfiguration<MultiTenantDbContextFactoryTests_MultiTenantDbContext> configuration = new()
+        MultiTenantConfiguration configuration = new()
         {
             Strategy = MultiTenantStrategy.Discriminator,
             DiscriminatorConfiguration = null // Null configuration
@@ -210,7 +211,7 @@ public class MultiTenantDbContextFactoryTests : IDisposable
 
     public void Dispose() => _serviceProvider.Dispose();
 
-    internal class MultiTenantDbContextFactoryTests_MultiTenantDbContext : MultiTenantDbContext
+    internal class MultiTenantDbContextFactoryTests_MultiTenantDbContext : ExtensibleDbContext
     {
         public MultiTenantDbContextFactoryTests_MultiTenantDbContext(DbContextOptions<MultiTenantDbContextFactoryTests_MultiTenantDbContext> options,
             IServiceProvider serviceProvider)

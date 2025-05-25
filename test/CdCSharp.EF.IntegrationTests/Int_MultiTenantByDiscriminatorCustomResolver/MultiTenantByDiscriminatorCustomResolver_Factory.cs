@@ -26,8 +26,9 @@ public class MultiTenantByDiscriminatorCustomResolver_Factory : WebApplicationFa
             services.AddControllers();
 
             // Configure multi-tenant with discriminator strategy
-            services.AddMultiTenantByDiscriminatorDbContext<MultiTenantByDiscriminatorCustomResolver_DbContext>(options =>
-                options.UseInMemoryDatabase(_databaseName));
+            services.AddExtensibleDbContext<MultiTenantByDiscriminatorCustomResolver_DbContext>(
+    features => features.EnableMultiTenantByDiscriminator(options =>
+        options.UseInMemoryDatabase(_databaseName)));
 
             // Use custom tenant resolver (query string based)
             services.AddCustomTenantResolver<MultiTenantByDiscriminatorCustomResolver_Resolver>();

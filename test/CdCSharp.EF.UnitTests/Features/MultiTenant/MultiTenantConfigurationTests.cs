@@ -1,9 +1,8 @@
-﻿using CdCSharp.EF.Configuration;
-using CdCSharp.EF.Core;
-using CdCSharp.EF.Core.Abstractions;
+﻿using CdCSharp.EF.Core;
+using CdCSharp.EF.Features.MultiTenant;
 using Microsoft.EntityFrameworkCore;
 
-namespace CdCSharp.EF.UnitTests.Configuration;
+namespace CdCSharp.EF.UnitTests.Features.MultiTenant;
 
 public class MultiTenantConfigurationTests
 {
@@ -11,10 +10,10 @@ public class MultiTenantConfigurationTests
     public void Constructor_SetsDefaultValues()
     {
         // Act
-        MultiTenantConfiguration<MultiTenantConfigurationTests_DbContext> configuration = new();
+        MultiTenantConfiguration configuration = new();
 
         // Assert
-        Assert.Equal(default(MultiTenantStrategy), configuration.Strategy);
+        Assert.Equal(default, configuration.Strategy);
         Assert.Null(configuration.DiscriminatorConfiguration);
         Assert.NotNull(configuration.DatabaseConfigurations);
         Assert.Empty(configuration.DatabaseConfigurations);
@@ -24,7 +23,7 @@ public class MultiTenantConfigurationTests
     public void Strategy_CanBeSet()
     {
         // Arrange
-        MultiTenantConfiguration<MultiTenantConfigurationTests_DbContext> configuration = new()
+        MultiTenantConfiguration configuration = new()
         {
             // Act
             Strategy = MultiTenantStrategy.Database
@@ -44,8 +43,8 @@ public class MultiTenantConfigurationTests
     public void DiscriminatorConfiguration_CanBeSet()
     {
         // Arrange
-        MultiTenantConfiguration<MultiTenantConfigurationTests_DbContext> configuration = new();
-        Action<DbContextOptionsBuilder<MultiTenantConfigurationTests_DbContext>> configAction =
+        MultiTenantConfiguration configuration = new();
+        Action<DbContextOptionsBuilder> configAction =
             options => options.UseInMemoryDatabase("test");
 
         // Act
@@ -59,10 +58,10 @@ public class MultiTenantConfigurationTests
     public void DatabaseConfigurations_CanBeModified()
     {
         // Arrange
-        MultiTenantConfiguration<MultiTenantConfigurationTests_DbContext> configuration = new();
-        Action<DbContextOptionsBuilder<MultiTenantConfigurationTests_DbContext>> tenant1Config =
+        MultiTenantConfiguration configuration = new();
+        Action<DbContextOptionsBuilder> tenant1Config =
             options => options.UseInMemoryDatabase("tenant1");
-        Action<DbContextOptionsBuilder<MultiTenantConfigurationTests_DbContext>> tenant2Config =
+        Action<DbContextOptionsBuilder> tenant2Config =
             options => options.UseInMemoryDatabase("tenant2");
 
         // Act
@@ -79,10 +78,10 @@ public class MultiTenantConfigurationTests
     public void DatabaseConfigurations_AllowsOverwriting()
     {
         // Arrange
-        MultiTenantConfiguration<MultiTenantConfigurationTests_DbContext> configuration = new();
-        Action<DbContextOptionsBuilder<MultiTenantConfigurationTests_DbContext>> originalConfig =
+        MultiTenantConfiguration configuration = new();
+        Action<DbContextOptionsBuilder> originalConfig =
             options => options.UseInMemoryDatabase("original");
-        Action<DbContextOptionsBuilder<MultiTenantConfigurationTests_DbContext>> newConfig =
+        Action<DbContextOptionsBuilder> newConfig =
             options => options.UseInMemoryDatabase("new");
 
         // Act
@@ -98,7 +97,7 @@ public class MultiTenantConfigurationTests
     public void DatabaseConfigurations_SupportsMultipleTenants()
     {
         // Arrange
-        MultiTenantConfiguration<MultiTenantConfigurationTests_DbContext> configuration = new();
+        MultiTenantConfiguration configuration = new();
 
         // Act
         for (int i = 1; i <= 10; i++)
@@ -117,13 +116,13 @@ public class MultiTenantConfigurationTests
     public void Configuration_CanBeCombinedWithBothStrategies()
     {
         // Arrange
-        MultiTenantConfiguration<MultiTenantConfigurationTests_DbContext> discriminatorConfig = new()
+        MultiTenantConfiguration discriminatorConfig = new()
         {
             Strategy = MultiTenantStrategy.Discriminator,
             DiscriminatorConfiguration = options => options.UseInMemoryDatabase("shared")
         };
 
-        MultiTenantConfiguration<MultiTenantConfigurationTests_DbContext> databaseConfig = new()
+        MultiTenantConfiguration databaseConfig = new()
         {
             Strategy = MultiTenantStrategy.Database
         };
@@ -139,7 +138,7 @@ public class MultiTenantConfigurationTests
         Assert.Single(databaseConfig.DatabaseConfigurations);
     }
 
-    internal class MultiTenantConfigurationTests_DbContext : MultiTenantDbContext
+    internal class MultiTenantConfigurationTests_DbContext : ExtensibleDbContext
     {
         public MultiTenantConfigurationTests_DbContext(
             DbContextOptions<MultiTenantConfigurationTests_DbContext> options,

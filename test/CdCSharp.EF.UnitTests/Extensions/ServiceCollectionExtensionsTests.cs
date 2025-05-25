@@ -1,5 +1,4 @@
-﻿using CdCSharp.EF.Configuration;
-using CdCSharp.EF.Core;
+﻿using CdCSharp.EF.Core;
 using CdCSharp.EF.Core.Abstractions;
 using CdCSharp.EF.Core.Resolvers;
 using CdCSharp.EF.Core.Stores;
@@ -8,6 +7,7 @@ using CdCSharp.EF.Features;
 using CdCSharp.EF.Features.Abstractions;
 using CdCSharp.EF.Features.Auditing;
 using CdCSharp.EF.Features.Identity;
+using CdCSharp.EF.Features.MultiTenant;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -39,23 +39,25 @@ public class ServiceCollectionExtensionsTests
         // Verificar que hay al menos un procesador registrado
         IEnumerable<IFeatureProcessor> processors = serviceProvider.GetServices<IFeatureProcessor>();
         Assert.NotEmpty(processors);
+        Assert.Contains(processors, p => p is AuditingFeatureProcessor);
 
         serviceProvider.Dispose();
     }
 
     [Fact]
-    public void AddMultiTenantByDatabaseDbContext_WithValidBuilder_ShouldRegisterExpectedServices()
+    public void AddExtensibleDbContext_WithMultiTenantByDatabase_ShouldRegisterExpectedServices()
     {
         // Arrange
         ServiceCollection services = new();
         services.AddHttpContextAccessor();
 
         // Act
-        services.AddMultiTenantByDatabaseDbContext<ServiceCollectionExtensionsTests_MultiTenantDbContext>(
-            tenants => tenants
-                .AddTenant("tenant1", options => options.UseInMemoryDatabase("tenant1-db"))
-                .AddTenant("tenant2", options => options.UseInMemoryDatabase("tenant2-db")),
-            features => features.EnableAuditing()
+        services.AddExtensibleDbContext<ServiceCollectionExtensionsTests_ExtensibleDbContext>(
+            featuresBuilder: features => features
+                .EnableMultiTenantByDatabase(tenants => tenants
+                    .AddTenant("tenant1", options => options.UseInMemoryDatabase("tenant1-db"))
+                    .AddTenant("tenant2", options => options.UseInMemoryDatabase("tenant2-db")))
+                .EnableAuditing()
         );
 
         ServiceProvider serviceProvider = services.BuildServiceProvider();
@@ -74,33 +76,40 @@ public class ServiceCollectionExtensionsTests
         Assert.NotNull(serviceProvider.GetService<DbContextFeatures>());
         Assert.NotNull(serviceProvider.GetService<ICurrentUserStore>());
         Assert.NotNull(serviceProvider.GetService<ICurrentUserResolver>());
-        Assert.NotNull(serviceProvider.GetService<MultiTenantConfiguration<ServiceCollectionExtensionsTests_MultiTenantDbContext>>());
 
-        // Verificar configuración multi-tenant
-        MultiTenantConfiguration<ServiceCollectionExtensionsTests_MultiTenantDbContext>? configuration = serviceProvider.GetService<MultiTenantConfiguration<ServiceCollectionExtensionsTests_MultiTenantDbContext>>();
-        Assert.Equal(MultiTenantStrategy.Database, configuration!.Strategy);
-        Assert.Equal(2, configuration.DatabaseConfigurations.Count);
-        Assert.True(configuration.DatabaseConfigurations.ContainsKey("tenant1"));
-        Assert.True(configuration.DatabaseConfigurations.ContainsKey("tenant2"));
+        // Verificar que DbContextFeatures tiene MultiTenant habilitado
+        DbContextFeatures? features = serviceProvider.GetService<DbContextFeatures>();
+        Assert.NotNull(features);
+        Assert.True(features.MultiTenant.Enabled);
+        Assert.Equal(MultiTenantStrategy.Database, features.MultiTenant.Configuration.Strategy);
+
+        // Para Database strategy debe registrar factory
+        Assert.NotNull(serviceProvider.GetService<IMultiTenantDbContextFactory<ServiceCollectionExtensionsTests_ExtensibleDbContext>>());
 
         // Verificar que hay procesadores registrados
         IEnumerable<IFeatureProcessor> processors = serviceProvider.GetServices<IFeatureProcessor>();
         Assert.NotEmpty(processors);
+        Assert.Contains(processors, p => p is AuditingFeatureProcessor);
+        Assert.Contains(processors, p => p is MultiTenantFeatureProcessor);
+
+        // Context debe resolverse correctamente
+        Assert.NotNull(serviceProvider.GetService<ServiceCollectionExtensionsTests_ExtensibleDbContext>());
 
         serviceProvider.Dispose();
     }
 
     [Fact]
-    public void AddMultiTenantByDatabaseDbContext_WithEmptyTenants_ShouldThrowArgumentException()
+    public void AddExtensibleDbContext_WithMultiTenantByDatabase_EmptyTenants_ShouldThrowArgumentException()
     {
         // Arrange
         ServiceCollection services = new();
 
         // Act & Assert
         ArgumentException exception = Assert.Throws<ArgumentException>(() =>
-            services.AddMultiTenantByDatabaseDbContext<ServiceCollectionExtensionsTests_MultiTenantDbContext>(
-                tenants => { }, // Empty builder
-                features => features.EnableAuditing()
+            services.AddExtensibleDbContext<ServiceCollectionExtensionsTests_ExtensibleDbContext>(
+                featuresBuilder: features => features
+                    .EnableMultiTenantByDatabase(tenants => { }) // Empty builder
+                    .EnableAuditing()
             )
         );
 
@@ -108,14 +117,15 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddMultiTenantByDatabaseDbContext_WithValidTenant_ShouldResolveDbContext()
+    public void AddExtensibleDbContext_WithMultiTenantByDatabase_ShouldResolveDbContext()
     {
         // Arrange
         ServiceCollection services = new();
-        services.AddMultiTenantByDatabaseDbContext<ServiceCollectionExtensionsTests_MultiTenantDbContext>(
-            tenants => tenants
-        .AddTenant("tenant1", options => options.UseInMemoryDatabase("tenant1-db")),
-            features => features.EnableAuditing()
+        services.AddExtensibleDbContext<ServiceCollectionExtensionsTests_ExtensibleDbContext>(
+            featuresBuilder: features => features
+                .EnableMultiTenantByDatabase(tenants => tenants
+                    .AddTenant("tenant1", options => options.UseInMemoryDatabase("tenant1-db")))
+                .EnableAuditing()
         );
 
         ServiceProvider serviceProvider = services.BuildServiceProvider();
@@ -123,7 +133,7 @@ public class ServiceCollectionExtensionsTests
         tenantStore!.SetCurrentTenantId("tenant1");
 
         // Act
-        ServiceCollectionExtensionsTests_MultiTenantDbContext? context = serviceProvider.GetService<ServiceCollectionExtensionsTests_MultiTenantDbContext>();
+        ServiceCollectionExtensionsTests_ExtensibleDbContext? context = serviceProvider.GetService<ServiceCollectionExtensionsTests_ExtensibleDbContext>();
 
         // Assert
         Assert.NotNull(context);
@@ -132,15 +142,17 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddMultiTenantByDiscriminatorDbContext_WithValidOptions_ShouldRegisterExpectedServices()
+    public void AddExtensibleDbContext_WithMultiTenantByDiscriminator_ShouldRegisterExpectedServices()
     {
         // Arrange
         ServiceCollection services = new();
         services.AddHttpContextAccessor();
 
         // Act
-        services.AddMultiTenantByDiscriminatorDbContext<ServiceCollectionExtensionsTests_MultiTenantDbContext>(options =>
-            options.UseInMemoryDatabase("test-db"));
+        services.AddExtensibleDbContext<ServiceCollectionExtensionsTests_ExtensibleDbContext>(
+            options => options.UseInMemoryDatabase("test-db"),
+            features => features.EnableMultiTenantByDiscriminator()
+        );
 
         ServiceProvider serviceProvider = services.BuildServiceProvider();
 
@@ -155,30 +167,34 @@ public class ServiceCollectionExtensionsTests
         Assert.NotNull(serviceProvider.GetService<ITenantResolver>());
         Assert.IsType<HttpHeaderTenantResolver>(serviceProvider.GetService<ITenantResolver>());
 
-        Assert.NotNull(serviceProvider.GetService<MultiTenantConfiguration<ServiceCollectionExtensionsTests_MultiTenantDbContext>>());
-        Assert.NotNull(serviceProvider.GetService<IMultiTenantDbContextFactory<ServiceCollectionExtensionsTests_MultiTenantDbContext>>());
+        // Verificar que DbContextFeatures tiene MultiTenant habilitado
+        DbContextFeatures? features = serviceProvider.GetService<DbContextFeatures>();
+        Assert.NotNull(features);
+        Assert.True(features.MultiTenant.Enabled);
+        Assert.Equal(MultiTenantStrategy.Discriminator, features.MultiTenant.Configuration.Strategy);
 
-        // Now we can safely resolve the context
-        Assert.NotNull(serviceProvider.GetService<ServiceCollectionExtensionsTests_MultiTenantDbContext>());
+        // Para Discriminator strategy NO debe registrar factory (usa registro normal)
+        Assert.NotNull(serviceProvider.GetService<IMultiTenantDbContextFactory<ServiceCollectionExtensionsTests_ExtensibleDbContext>>());
 
-        MultiTenantConfiguration<ServiceCollectionExtensionsTests_MultiTenantDbContext>? configuration = serviceProvider.GetService<MultiTenantConfiguration<ServiceCollectionExtensionsTests_MultiTenantDbContext>>();
-        Assert.Equal(MultiTenantStrategy.Discriminator, configuration!.Strategy);
-        Assert.NotNull(configuration.DiscriminatorConfiguration);
+        // Context debe resolverse correctamente
+        Assert.NotNull(serviceProvider.GetService<ServiceCollectionExtensionsTests_ExtensibleDbContext>());
 
         serviceProvider.Dispose();
     }
 
     [Fact]
-    public void AddMultiTenantByDiscriminatorDbContext_WithFeatures_ShouldRegisterExpectedServices()
+    public void AddExtensibleDbContext_WithMultiTenantByDiscriminator_AndFeatures_ShouldRegisterExpectedServices()
     {
         // Arrange
         ServiceCollection services = new();
         services.AddHttpContextAccessor();
 
         // Act
-        services.AddMultiTenantByDiscriminatorDbContext<ServiceCollectionExtensionsTests_MultiTenantDbContext>(
+        services.AddExtensibleDbContext<ServiceCollectionExtensionsTests_ExtensibleDbContext>(
             options => options.UseInMemoryDatabase("test-db"),
-            features => features.EnableAuditing()
+            features => features
+                .EnableMultiTenantByDiscriminator()
+                .EnableAuditing()
         );
 
         ServiceProvider serviceProvider = services.BuildServiceProvider();
@@ -197,20 +213,48 @@ public class ServiceCollectionExtensionsTests
         Assert.NotNull(serviceProvider.GetService<DbContextFeatures>());
         Assert.NotNull(serviceProvider.GetService<ICurrentUserStore>());
         Assert.NotNull(serviceProvider.GetService<ICurrentUserResolver>());
-        Assert.NotNull(serviceProvider.GetService<MultiTenantConfiguration<ServiceCollectionExtensionsTests_MultiTenantDbContext>>());
-        Assert.NotNull(serviceProvider.GetService<IMultiTenantDbContextFactory<ServiceCollectionExtensionsTests_MultiTenantDbContext>>());
 
-        // Now we can safely resolve the context
-        Assert.NotNull(serviceProvider.GetService<ServiceCollectionExtensionsTests_MultiTenantDbContext>());
+        // Verificar que DbContextFeatures tiene MultiTenant habilitado
+        DbContextFeatures? features = serviceProvider.GetService<DbContextFeatures>();
+        Assert.NotNull(features);
+        Assert.True(features.MultiTenant.Enabled);
+        Assert.Equal(MultiTenantStrategy.Discriminator, features.MultiTenant.Configuration.Strategy);
 
-        MultiTenantConfiguration<ServiceCollectionExtensionsTests_MultiTenantDbContext>? configuration = serviceProvider.GetService<MultiTenantConfiguration<ServiceCollectionExtensionsTests_MultiTenantDbContext>>();
-        Assert.Equal(MultiTenantStrategy.Discriminator, configuration!.Strategy);
-        Assert.NotNull(configuration.DiscriminatorConfiguration);
+        // Context debe resolverse correctamente
+        Assert.NotNull(serviceProvider.GetService<ServiceCollectionExtensionsTests_ExtensibleDbContext>());
 
         // Verificar que hay procesadores registrados
         IEnumerable<IFeatureProcessor> processors = serviceProvider.GetServices<IFeatureProcessor>();
         Assert.NotEmpty(processors);
+        Assert.Contains(processors, p => p is AuditingFeatureProcessor);
+        Assert.Contains(processors, p => p is MultiTenantFeatureProcessor);
 
+        serviceProvider.Dispose();
+    }
+
+    [Fact]
+    public void AddExtensibleDbContext_WithMultiTenantByDiscriminator_ShouldResolveDbContext()
+    {
+        // Arrange
+        ServiceCollection services = new();
+        services.AddExtensibleDbContext<ServiceCollectionExtensionsTests_ExtensibleDbContext>(
+            options => options.UseInMemoryDatabase("test-db"),
+            features => features.EnableMultiTenantByDiscriminator()
+        );
+
+        ServiceProvider serviceProvider = services.BuildServiceProvider();
+
+        // Set a tenant before resolving the context
+        IWritableTenantStore? tenantStore = serviceProvider.GetService<ITenantStore>() as IWritableTenantStore;
+        tenantStore!.SetCurrentTenantId("test-tenant");
+
+        // Act
+        ServiceCollectionExtensionsTests_ExtensibleDbContext? context = serviceProvider.GetService<ServiceCollectionExtensionsTests_ExtensibleDbContext>();
+
+        // Assert
+        Assert.NotNull(context);
+        Assert.Equal("test-tenant", context.CurrentTenantId);
+        context?.Dispose();
         serviceProvider.Dispose();
     }
 
@@ -219,8 +263,10 @@ public class ServiceCollectionExtensionsTests
     {
         // Arrange
         ServiceCollection services = new();
-        services.AddMultiTenantByDiscriminatorDbContext<ServiceCollectionExtensionsTests_MultiTenantDbContext>(options =>
-            options.UseInMemoryDatabase("test-db"));
+        services.AddExtensibleDbContext<ServiceCollectionExtensionsTests_ExtensibleDbContext>(
+            options => options.UseInMemoryDatabase("test-db"),
+            features => features.EnableMultiTenantByDiscriminator()
+        );
 
         // Act
         services.AddCustomTenantResolver<ServiceCollectionExtensionsTests_TenantResolver>();
@@ -240,8 +286,10 @@ public class ServiceCollectionExtensionsTests
     {
         // Arrange
         ServiceCollection services = new();
-        services.AddMultiTenantByDiscriminatorDbContext<ServiceCollectionExtensionsTests_MultiTenantDbContext>(options =>
-            options.UseInMemoryDatabase("test-db"));
+        services.AddExtensibleDbContext<ServiceCollectionExtensionsTests_ExtensibleDbContext>(
+            options => options.UseInMemoryDatabase("test-db"),
+            features => features.EnableMultiTenantByDiscriminator()
+        );
 
         // Act
         services.AddCustomTenantStore<ServiceCollectionExtensionsTests_TenantStore>();
@@ -257,36 +305,16 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddMultiTenantByDiscriminatorDbContext_WithValidTenant_ShouldResolveDbContext()
-    {
-        // Arrange
-        ServiceCollection services = new();
-        services.AddMultiTenantByDiscriminatorDbContext<ServiceCollectionExtensionsTests_MultiTenantDbContext>(options =>
-            options.UseInMemoryDatabase("test-db"));
-        ServiceProvider serviceProvider = services.BuildServiceProvider();
-
-        // Set a tenant before resolving the context
-        IWritableTenantStore? tenantStore = serviceProvider.GetService<ITenantStore>() as IWritableTenantStore;
-        tenantStore!.SetCurrentTenantId("test-tenant");
-
-        // Act
-        ServiceCollectionExtensionsTests_MultiTenantDbContext? context = serviceProvider.GetService<ServiceCollectionExtensionsTests_MultiTenantDbContext>();
-
-        // Assert
-        Assert.NotNull(context);
-        context?.Dispose();
-        serviceProvider.Dispose();
-    }
-
-    [Fact]
     public void ServiceRegistrations_ForMultiTenantByDiscriminator_ShouldHaveCorrectLifetime()
     {
         // Arrange
         ServiceCollection services = new();
 
         // Act
-        services.AddMultiTenantByDiscriminatorDbContext<ServiceCollectionExtensionsTests_MultiTenantDbContext>(options =>
-            options.UseInMemoryDatabase("test-db"));
+        services.AddExtensibleDbContext<ServiceCollectionExtensionsTests_ExtensibleDbContext>(
+            options => options.UseInMemoryDatabase("test-db"),
+            features => features.EnableMultiTenantByDiscriminator()
+        );
 
         // Assert
         ServiceDescriptor tenantStoreDescriptor = services.First(s => s.ServiceType == typeof(ITenantStore));
@@ -295,13 +323,40 @@ public class ServiceCollectionExtensionsTests
         ServiceDescriptor tenantResolverDescriptor = services.First(s => s.ServiceType == typeof(ITenantResolver));
         Assert.Equal(ServiceLifetime.Scoped, tenantResolverDescriptor.Lifetime);
 
-        ServiceDescriptor configurationDescriptor = services.First(s => s.ServiceType == typeof(MultiTenantConfiguration<ServiceCollectionExtensionsTests_MultiTenantDbContext>));
-        Assert.Equal(ServiceLifetime.Singleton, configurationDescriptor.Lifetime);
+        ServiceDescriptor featuresDescriptor = services.First(s => s.ServiceType == typeof(DbContextFeatures));
+        Assert.Equal(ServiceLifetime.Singleton, featuresDescriptor.Lifetime);
 
-        ServiceDescriptor factoryDescriptor = services.First(s => s.ServiceType == typeof(IMultiTenantDbContextFactory<ServiceCollectionExtensionsTests_MultiTenantDbContext>));
+        ServiceDescriptor contextDescriptor = services.First(s => s.ServiceType == typeof(ServiceCollectionExtensionsTests_ExtensibleDbContext));
+        Assert.Equal(ServiceLifetime.Scoped, contextDescriptor.Lifetime);
+    }
+
+    [Fact]
+    public void ServiceRegistrations_ForMultiTenantByDatabase_ShouldHaveCorrectLifetime()
+    {
+        // Arrange
+        ServiceCollection services = new();
+
+        // Act
+        services.AddExtensibleDbContext<ServiceCollectionExtensionsTests_ExtensibleDbContext>(
+            featuresBuilder: features => features
+                .EnableMultiTenantByDatabase(tenants => tenants
+                    .AddTenant("tenant1", opts => opts.UseInMemoryDatabase("tenant1-db")))
+        );
+
+        // Assert
+        ServiceDescriptor tenantStoreDescriptor = services.First(s => s.ServiceType == typeof(ITenantStore));
+        Assert.Equal(ServiceLifetime.Scoped, tenantStoreDescriptor.Lifetime);
+
+        ServiceDescriptor tenantResolverDescriptor = services.First(s => s.ServiceType == typeof(ITenantResolver));
+        Assert.Equal(ServiceLifetime.Scoped, tenantResolverDescriptor.Lifetime);
+
+        ServiceDescriptor featuresDescriptor = services.First(s => s.ServiceType == typeof(DbContextFeatures));
+        Assert.Equal(ServiceLifetime.Singleton, featuresDescriptor.Lifetime);
+
+        ServiceDescriptor factoryDescriptor = services.First(s => s.ServiceType == typeof(IMultiTenantDbContextFactory<ServiceCollectionExtensionsTests_ExtensibleDbContext>));
         Assert.Equal(ServiceLifetime.Scoped, factoryDescriptor.Lifetime);
 
-        ServiceDescriptor contextDescriptor = services.First(s => s.ServiceType == typeof(ServiceCollectionExtensionsTests_MultiTenantDbContext));
+        ServiceDescriptor contextDescriptor = services.First(s => s.ServiceType == typeof(ServiceCollectionExtensionsTests_ExtensibleDbContext));
         Assert.Equal(ServiceLifetime.Scoped, contextDescriptor.Lifetime);
     }
 
@@ -332,16 +387,17 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddMultiTenantByDatabaseDbContext_WithIdentityFeature_ShouldRegisterIdentityProcessor()
+    public void AddExtensibleDbContext_WithMultiTenantByDatabase_AndIdentityFeature_ShouldRegisterIdentityProcessor()
     {
         // Arrange
         ServiceCollection services = new();
 
         // Act
-        services.AddMultiTenantByDatabaseDbContext<ServiceCollectionExtensionsTests_MultiTenantDbContext>(
-            tenants => tenants
-                .AddTenant("tenant1", options => options.UseInMemoryDatabase("tenant1-db")),
-            features => features.EnableIdentity<Guid>()
+        services.AddExtensibleDbContext<ServiceCollectionExtensionsTests_ExtensibleDbContext>(
+            featuresBuilder: features => features
+                .EnableMultiTenantByDatabase(tenants => tenants
+                    .AddTenant("tenant1", options => options.UseInMemoryDatabase("tenant1-db")))
+                .EnableIdentity<Guid>()
         );
 
         ServiceProvider serviceProvider = services.BuildServiceProvider();
@@ -363,15 +419,17 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddMultiTenantByDiscriminatorDbContext_WithIdentityFeature_ShouldRegisterIdentityProcessor()
+    public void AddExtensibleDbContext_WithMultiTenantByDiscriminator_AndIdentityFeature_ShouldRegisterIdentityProcessor()
     {
         // Arrange
         ServiceCollection services = new();
 
         // Act
-        services.AddMultiTenantByDiscriminatorDbContext<ServiceCollectionExtensionsTests_MultiTenantDbContext>(
+        services.AddExtensibleDbContext<ServiceCollectionExtensionsTests_ExtensibleDbContext>(
             options => options.UseInMemoryDatabase("test-db"),
-            features => features.EnableIdentity<Guid>()
+            features => features
+                .EnableMultiTenantByDiscriminator()
+                .EnableIdentity<Guid>()
         );
 
         ServiceProvider serviceProvider = services.BuildServiceProvider();
@@ -388,6 +446,7 @@ public class ServiceCollectionExtensionsTests
         // Verificar que hay procesadores registrados incluyendo Identity
         IEnumerable<IFeatureProcessor> processors = serviceProvider.GetServices<IFeatureProcessor>();
         Assert.Contains(processors, p => p is IdentityFeatureProcessor);
+        Assert.Contains(processors, p => p is MultiTenantFeatureProcessor);
 
         serviceProvider.Dispose();
     }
@@ -423,6 +482,39 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Fact]
+    public void AddExtensibleDbContext_WithMultiTenantDiscriminator_AuditingAndIdentity_ShouldRegisterAllProcessors()
+    {
+        // Arrange
+        ServiceCollection services = new();
+
+        // Act
+        services.AddExtensibleDbContext<ServiceCollectionExtensionsTests_ExtensibleDbContext>(
+            options => options.UseInMemoryDatabase("test-db"),
+            features => features
+                .EnableMultiTenantByDiscriminator()
+                .EnableAuditing()
+                .EnableIdentity<Guid>()
+        );
+
+        ServiceProvider serviceProvider = services.BuildServiceProvider();
+
+        // Assert
+        DbContextFeatures? dbFeatures = serviceProvider.GetService<DbContextFeatures>();
+        Assert.NotNull(dbFeatures);
+        Assert.True(dbFeatures.MultiTenant.Enabled);
+        Assert.True(dbFeatures.Auditing.Enabled);
+        Assert.True(dbFeatures.Identity.Enabled);
+
+        // Verificar que hay procesadores registrados para todas las features
+        IEnumerable<IFeatureProcessor> processors = serviceProvider.GetServices<IFeatureProcessor>();
+        Assert.Contains(processors, p => p is MultiTenantFeatureProcessor);
+        Assert.Contains(processors, p => p is AuditingFeatureProcessor);
+        Assert.Contains(processors, p => p is IdentityFeatureProcessor);
+
+        serviceProvider.Dispose();
+    }
+
+    [Fact]
     public void AddExtensibleDbContext_WithIdentityDisabled_ShouldNotRegisterIdentityProcessor()
     {
         // Arrange
@@ -441,15 +533,73 @@ public class ServiceCollectionExtensionsTests
         Assert.NotNull(dbFeatures);
         Assert.True(dbFeatures.Auditing.Enabled);
         Assert.False(dbFeatures.Identity.Enabled);
+        Assert.False(dbFeatures.MultiTenant.Enabled);
 
         // Verificar que solo hay procesador de auditing
         IEnumerable<IFeatureProcessor> processors = serviceProvider.GetServices<IFeatureProcessor>();
         Assert.Contains(processors, p => p is AuditingFeatureProcessor);
         Assert.DoesNotContain(processors, p => p is IdentityFeatureProcessor);
+        Assert.DoesNotContain(processors, p => p is MultiTenantFeatureProcessor);
 
         serviceProvider.Dispose();
     }
 
+    [Fact]
+    public void AddExtensibleDbContext_WithoutFeatures_ShouldRegisterBasicServices()
+    {
+        // Arrange
+        ServiceCollection services = new();
+
+        // Act
+        services.AddExtensibleDbContext<ServiceCollectionExtensionsTests_ExtensibleDbContext>(
+            options => options.UseInMemoryDatabase("test-db")
+            // Sin features
+        );
+
+        ServiceProvider serviceProvider = services.BuildServiceProvider();
+
+        // Assert
+        DbContextFeatures? dbFeatures = serviceProvider.GetService<DbContextFeatures>();
+        Assert.NotNull(dbFeatures);
+        Assert.False(dbFeatures.Auditing.Enabled);
+        Assert.False(dbFeatures.Identity.Enabled);
+        Assert.False(dbFeatures.MultiTenant.Enabled);
+
+        // Context debe resolverse correctamente
+        Assert.NotNull(serviceProvider.GetService<ServiceCollectionExtensionsTests_ExtensibleDbContext>());
+
+        // No debe haber procesadores registrados
+        IEnumerable<IFeatureProcessor> processors = serviceProvider.GetServices<IFeatureProcessor>();
+        Assert.Empty(processors);
+
+        serviceProvider.Dispose();
+    }
+
+    [Fact]
+    public void AddExtensibleDbContext_WithDatabaseMultiTenant_ShouldNotAllowContextWithoutTenant()
+    {
+        // Arrange
+        ServiceCollection services = new();
+        services.AddExtensibleDbContext<ServiceCollectionExtensionsTests_ExtensibleDbContext>(
+            featuresBuilder: features => features
+                .EnableMultiTenantByDatabase(tenants => tenants
+                    .AddTenant("tenant1", options => options.UseInMemoryDatabase("tenant1-db")))
+        );
+
+        ServiceProvider serviceProvider = services.BuildServiceProvider();
+        // NO configuramos tenant ID
+
+        // Act & Assert
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+        {
+            ServiceCollectionExtensionsTests_ExtensibleDbContext? context = serviceProvider.GetService<ServiceCollectionExtensionsTests_ExtensibleDbContext>();
+        });
+
+        Assert.Contains("Current tenant ID is not set", exception.Message);
+        serviceProvider.Dispose();
+    }
+
+    // Clases auxiliares para tests
     internal class ServiceCollectionExtensionsTests_TenantResolver : ITenantResolver
     {
         public Task<string?> ResolveTenantIdAsync() => Task.FromResult<string?>("custom-tenant");
@@ -466,18 +616,8 @@ public class ServiceCollectionExtensionsTests
 
     internal class ServiceCollectionExtensionsTests_ExtensibleDbContext : ExtensibleDbContext
     {
-        public ServiceCollectionExtensionsTests_ExtensibleDbContext(DbContextOptions<ServiceCollectionExtensionsTests_ExtensibleDbContext> options,
-            IServiceProvider serviceProvider)
-            : base(options, serviceProvider)
-        {
-        }
-
-        public DbSet<ServiceCollectionExtensionsTests_TenantEntity> Products { get; set; } = null!;
-    }
-
-    internal class ServiceCollectionExtensionsTests_MultiTenantDbContext : MultiTenantDbContext
-    {
-        public ServiceCollectionExtensionsTests_MultiTenantDbContext(DbContextOptions<ServiceCollectionExtensionsTests_MultiTenantDbContext> options,
+        public ServiceCollectionExtensionsTests_ExtensibleDbContext(
+            DbContextOptions<ServiceCollectionExtensionsTests_ExtensibleDbContext> options,
             IServiceProvider serviceProvider)
             : base(options, serviceProvider)
         {

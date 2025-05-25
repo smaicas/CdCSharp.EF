@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 
 namespace CdCSharp.EF.IntegrationTests.Int_MultiTenantByDatabaseWithAuditing;
 
-public class MultiTenantByDatabaseWithAuditing_DbContext : MultiTenantDbContext
+public class MultiTenantByDatabaseWithAuditing_DbContext : ExtensibleDbContext
 {
     public MultiTenantByDatabaseWithAuditing_DbContext(
         DbContextOptions<MultiTenantByDatabaseWithAuditing_DbContext> options,

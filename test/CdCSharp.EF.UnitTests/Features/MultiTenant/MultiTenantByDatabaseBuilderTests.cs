@@ -1,9 +1,9 @@
-﻿using CdCSharp.EF.Configuration;
-using CdCSharp.EF.Core;
+﻿using CdCSharp.EF.Core;
 using CdCSharp.EF.Core.Abstractions;
+using CdCSharp.EF.Features.MultiTenant;
 using Microsoft.EntityFrameworkCore;
 
-namespace CdCSharp.EF.UnitTests.Configuration;
+namespace CdCSharp.EF.UnitTests.Features.MultiTenant;
 
 public class MultiTenantByDatabaseBuilderTests
 {
@@ -11,13 +11,13 @@ public class MultiTenantByDatabaseBuilderTests
     public void AddTenant_WithValidConfiguration_AddsToBuilder()
     {
         // Arrange
-        MultiTenantByDatabaseBuilder<MultiTenantByDatabaseBuilderTests_MultiTenantDbContext> builder = new();
+        MultiTenantByDatabaseBuilder builder = new();
 
         // Act
         builder.AddTenant("tenant1", options => options.UseInMemoryDatabase("db1"));
         builder.AddTenant("tenant2", options => options.UseInMemoryDatabase("db2"));
 
-        IDictionary<string, Action<DbContextOptionsBuilder<MultiTenantByDatabaseBuilderTests_MultiTenantDbContext>>> result = builder.Build();
+        IDictionary<string, Action<DbContextOptionsBuilder>> result = builder.Build();
 
         // Assert
         Assert.Equal(2, result.Count);
@@ -29,13 +29,13 @@ public class MultiTenantByDatabaseBuilderTests
     public void AddTenant_WithSameTenantId_OverwritesPreviousConfiguration()
     {
         // Arrange
-        MultiTenantByDatabaseBuilder<MultiTenantByDatabaseBuilderTests_MultiTenantDbContext> builder = new();
+        MultiTenantByDatabaseBuilder builder = new();
 
         // Act
         builder.AddTenant("tenant1", options => options.UseInMemoryDatabase("db1"));
         builder.AddTenant("tenant1", options => options.UseInMemoryDatabase("db2"));
 
-        IDictionary<string, Action<DbContextOptionsBuilder<MultiTenantByDatabaseBuilderTests_MultiTenantDbContext>>> result = builder.Build();
+        IDictionary<string, Action<DbContextOptionsBuilder>> result = builder.Build();
 
         // Assert
         Assert.Single(result);
@@ -46,16 +46,16 @@ public class MultiTenantByDatabaseBuilderTests
     public void Build_WithNoTenants_ReturnsEmptyDictionary()
     {
         // Arrange
-        MultiTenantByDatabaseBuilder<MultiTenantByDatabaseBuilderTests_MultiTenantDbContext> builder = new();
+        MultiTenantByDatabaseBuilder builder = new();
 
         // Act
-        IDictionary<string, Action<DbContextOptionsBuilder<MultiTenantByDatabaseBuilderTests_MultiTenantDbContext>>> result = builder.Build();
+        IDictionary<string, Action<DbContextOptionsBuilder>> result = builder.Build();
 
         // Assert
         Assert.Empty(result);
     }
 
-    internal class MultiTenantByDatabaseBuilderTests_MultiTenantDbContext : MultiTenantDbContext
+    internal class MultiTenantByDatabaseBuilderTests_MultiTenantDbContext : ExtensibleDbContext
     {
         public MultiTenantByDatabaseBuilderTests_MultiTenantDbContext(DbContextOptions<MultiTenantByDatabaseBuilderTests_MultiTenantDbContext> options,
             IServiceProvider serviceProvider)

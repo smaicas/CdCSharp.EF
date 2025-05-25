@@ -26,8 +26,10 @@ public class MultiTenantByDiscriminator_Factory : WebApplicationFactory<Program>
             services.AddControllers();
 
             // Configure multi-tenant with discriminator strategy
-            services.AddMultiTenantByDiscriminatorDbContext<MultiTenantByDiscriminator_DbContext>(options =>
-                options.UseInMemoryDatabase(_databaseName));
+            services.AddExtensibleDbContext<MultiTenantByDiscriminator_DbContext>(
+                features => features.EnableMultiTenantByDiscriminator(options =>
+                options.UseInMemoryDatabase(_databaseName))
+                );
         });
 
         builder.Configure(app =>

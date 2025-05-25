@@ -32,8 +32,9 @@ public class MultiTenantByDiscriminatorClaimsBased_Factory : WebApplicationFacto
             services.AddControllers();
 
             // Configure multi-tenant with discriminator strategy
-            services.AddMultiTenantByDiscriminatorDbContext<MultiTenantByDiscriminatorClaimsBased_DbContext>(options =>
-                options.UseInMemoryDatabase(_databaseName));
+            services.AddExtensibleDbContext<MultiTenantByDiscriminatorClaimsBased_DbContext>(
+                features => features.EnableMultiTenantByDiscriminator(options =>
+                    options.UseInMemoryDatabase(_databaseName)));
 
             // Use claims-based tenant store
             services.AddCustomTenantStore<Core.Stores.ClaimsTenantStore>();

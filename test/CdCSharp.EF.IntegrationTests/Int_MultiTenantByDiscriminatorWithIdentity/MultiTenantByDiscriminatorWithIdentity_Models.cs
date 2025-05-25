@@ -6,7 +6,7 @@ using System.Text.Json.Serialization;
 
 namespace CdCSharp.EF.IntegrationTests.Int_MultiTenantByDiscriminatorWithIdentity;
 
-public class MultiTenantByDiscriminatorWithIdentity_DbContext : MultiTenantDbContext
+public class MultiTenantByDiscriminatorWithIdentity_DbContext : ExtensibleDbContext
 {
     public MultiTenantByDiscriminatorWithIdentity_DbContext(
         DbContextOptions<MultiTenantByDiscriminatorWithIdentity_DbContext> options,

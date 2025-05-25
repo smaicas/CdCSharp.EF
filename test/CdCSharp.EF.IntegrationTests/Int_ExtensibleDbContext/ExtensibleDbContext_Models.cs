@@ -1,9 +1,10 @@
-﻿using CdCSharp.EF.Core.Abstractions;
+﻿using CdCSharp.EF.Core;
+using CdCSharp.EF.Core.Abstractions;
 using Microsoft.EntityFrameworkCore;
 
 namespace CdCSharp.EF.IntegrationTests.Int_ExtensibleDbContext;
 
-public class ExtensibleDbContext_DbContext : CdCSharp.EF.Core.ExtensibleDbContext
+public class ExtensibleDbContext_DbContext : ExtensibleDbContext
 {
     public ExtensibleDbContext_DbContext(DbContextOptions<ExtensibleDbContext_DbContext> options,
         IServiceProvider serviceProvider)

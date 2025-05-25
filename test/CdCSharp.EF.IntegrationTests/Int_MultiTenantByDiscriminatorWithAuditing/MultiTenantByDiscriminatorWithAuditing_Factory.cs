@@ -28,14 +28,22 @@ public class MultiTenantByDiscriminatorWithAuditing_Factory : WebApplicationFact
             services.AddControllers();
 
             // Configure multi-tenant with discriminator strategy and features
-            services.AddMultiTenantByDiscriminatorDbContext<MultiTenantByDiscriminatorWithAuditing_DbContext>(
-                options => options.UseInMemoryDatabase(_databaseName),
-                features => features.EnableAuditing(config =>
-                {
-                    config.BehaviorWhenNoUser = AuditingBehavior.UseDefaultUser;
-                    config.DefaultUserId = "SYSTEM";
-                })
-            );
+
+            services.AddExtensibleDbContext<MultiTenantByDiscriminatorWithAuditing_DbContext>(
+                    features =>
+                    {
+                        features.EnableMultiTenantByDiscriminator(options =>
+                        options.UseInMemoryDatabase(_databaseName));
+
+                        features.EnableAuditing(config =>
+                        {
+                            config.BehaviorWhenNoUser = AuditingBehavior.UseDefaultUser;
+                            config.DefaultUserId = "SYSTEM";
+                        });
+
+                        return features;
+                    });
+
         });
 
         builder.Configure(app =>

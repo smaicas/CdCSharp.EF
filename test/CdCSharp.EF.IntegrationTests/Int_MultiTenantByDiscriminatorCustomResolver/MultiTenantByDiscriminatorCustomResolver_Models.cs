@@ -32,7 +32,7 @@ public class MultiTenantByDiscriminatorCustomResolver_Resolver : ITenantResolver
     }
 }
 
-public class MultiTenantByDiscriminatorCustomResolver_DbContext : MultiTenantDbContext
+public class MultiTenantByDiscriminatorCustomResolver_DbContext : ExtensibleDbContext
 {
     public MultiTenantByDiscriminatorCustomResolver_DbContext(
         DbContextOptions<MultiTenantByDiscriminatorCustomResolver_DbContext> options,

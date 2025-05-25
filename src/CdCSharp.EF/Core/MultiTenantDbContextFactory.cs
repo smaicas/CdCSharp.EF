@@ -1,20 +1,20 @@
-﻿using CdCSharp.EF.Configuration;
-using CdCSharp.EF.Core.Abstractions;
+﻿using CdCSharp.EF.Core.Abstractions;
+using CdCSharp.EF.Features.MultiTenant;
 using Microsoft.EntityFrameworkCore;
 
 namespace CdCSharp.EF.Core;
 
 public class MultiTenantDbContextFactory<TContext> : IMultiTenantDbContextFactory<TContext>
-    where TContext : DbContext
+    where TContext : ExtensibleDbContext
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ITenantStore _tenantStore;
-    private readonly MultiTenantConfiguration<TContext> _configuration;
+    private readonly MultiTenantConfiguration _configuration;
 
     public MultiTenantDbContextFactory(
         IServiceProvider serviceProvider,
         ITenantStore tenantStore,
-        MultiTenantConfiguration<TContext> configuration)
+        MultiTenantConfiguration configuration)
     {
         _serviceProvider = serviceProvider;
         _tenantStore = tenantStore;
@@ -36,7 +36,7 @@ public class MultiTenantDbContextFactory<TContext> : IMultiTenantDbContextFactor
     {
         if (_configuration.Strategy == MultiTenantStrategy.Database)
         {
-            if (!_configuration.DatabaseConfigurations.TryGetValue(tenantId, out Action<DbContextOptionsBuilder<TContext>>? dbConfig))
+            if (!_configuration.DatabaseConfigurations.TryGetValue(tenantId, out Action<DbContextOptionsBuilder>? dbConfig) || dbConfig == null)
             {
                 throw new InvalidOperationException($"No database configuration found for tenant: {tenantId}");
             }
@@ -53,10 +53,7 @@ public class MultiTenantDbContextFactory<TContext> : IMultiTenantDbContextFactor
 
             TContext context = (TContext)Activator.CreateInstance(typeof(TContext), options.Options, _serviceProvider)!;
 
-            if (context is MultiTenantDbContext multiTenantContext)
-            {
-                multiTenantContext.SetTenantId(tenantId);
-            }
+            context.SetTenantId(tenantId);
 
             return context;
         }

@@ -27,10 +27,17 @@ public class MultiTenantByDiscriminatorWithIdentity_Factory : WebApplicationFact
             services.AddControllers();
 
             // Configure multi-tenant with discriminator strategy and Identity
-            services.AddMultiTenantByDiscriminatorDbContext<MultiTenantByDiscriminatorWithIdentity_DbContext>(
-                options => options.UseInMemoryDatabase(_databaseName),
-                features => features.EnableIdentity<Guid>()
-            );
+            services.AddExtensibleDbContext<MultiTenantByDiscriminatorWithIdentity_DbContext>(
+                features =>
+                {
+                    features.EnableMultiTenantByDiscriminator(options =>
+                    options.UseInMemoryDatabase(_databaseName));
+
+                    features.EnableIdentity<Guid>();
+
+                    return features;
+                });
+
         });
 
         builder.Configure(app =>

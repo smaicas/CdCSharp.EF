@@ -1,4 +1,5 @@
-﻿using CdCSharp.EF.Features.Abstractions;
+﻿using CdCSharp.EF.Core.Abstractions;
+using CdCSharp.EF.Features.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -7,10 +8,22 @@ namespace CdCSharp.EF.Core;
 public abstract class ExtensibleDbContext : DbContext
 {
     private readonly IEnumerable<IFeatureProcessor> _processors;
+    private readonly ITenantStore? _tenantStore;
+    private string? _tenantId;
 
     protected ExtensibleDbContext(
         DbContextOptions options,
-        IServiceProvider serviceProvider) : base(options) => _processors = serviceProvider.GetService<IEnumerable<IFeatureProcessor>>() ?? new List<IFeatureProcessor>();
+        IServiceProvider serviceProvider) : base(options)
+    {
+        _processors = serviceProvider.GetService<IEnumerable<IFeatureProcessor>>() ?? new List<IFeatureProcessor>();
+        _tenantStore = serviceProvider.GetService<ITenantStore>();
+    }
+
+    // _tenantId priorizes over service (TenantStore) value.
+    // It is done to force tenant acces when CreateContexT(tenantId) ocurs.
+    public string? CurrentTenantId => _tenantId ?? _tenantStore?.GetCurrentTenantId();
+
+    internal void SetTenantId(string tenantId) => _tenantId = tenantId;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -21,12 +34,11 @@ public abstract class ExtensibleDbContext : DbContext
             processor.OnModelCreating(modelBuilder);
         }
 
-        // Aplicar las features
         foreach (Microsoft.EntityFrameworkCore.Metadata.IMutableEntityType entityType in modelBuilder.Model.GetEntityTypes())
         {
             foreach (IFeatureProcessor processor in _processors)
             {
-                processor.OnModelCreatingEntity(modelBuilder, entityType.ClrType);
+                processor.OnModelCreatingEntity(modelBuilder, entityType.ClrType, this);
             }
         }
     }

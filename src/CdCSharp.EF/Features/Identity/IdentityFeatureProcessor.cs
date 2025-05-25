@@ -1,4 +1,5 @@
-﻿using CdCSharp.EF.Features.Abstractions;
+﻿using CdCSharp.EF.Core;
+using CdCSharp.EF.Features.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
@@ -27,9 +28,9 @@ public class IdentityFeatureProcessor : IFeatureProcessor
 
     }
 
-    public void OnModelCreatingEntity(ModelBuilder modelBuilder, Type entityType)
+    public void OnModelCreatingEntity(ModelBuilder modelBuilder, Type entityType, ExtensibleDbContext context)
     {
-        // Identity feature doesn't require process anything on model creating per each entity.
+        // NOOP
     }
 
     private void ConfigureUserEntity(ModelBuilder modelBuilder)

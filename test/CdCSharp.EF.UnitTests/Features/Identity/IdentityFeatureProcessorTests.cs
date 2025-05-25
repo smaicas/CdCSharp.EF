@@ -1,4 +1,5 @@
-﻿using CdCSharp.EF.Features.Identity;
+﻿using CdCSharp.EF.Core;
+using CdCSharp.EF.Features.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -22,7 +23,7 @@ public class IdentityFeatureProcessorTests : IDisposable
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
 
-        _context = new IdentityFeatureProcessorTests_DbContext(options);
+        _context = new IdentityFeatureProcessorTests_DbContext(options, _serviceProvider);
 
         _feature = new() // Initialize _feature here
         {
@@ -150,7 +151,7 @@ public class IdentityFeatureProcessorTests : IDisposable
         Type entityType = typeof(IdentityUser<Guid>);
 
         // Act & Assert - Should not throw
-        _processor.OnModelCreatingEntity(modelBuilder, entityType);
+        _processor.OnModelCreatingEntity(modelBuilder, entityType, _context);
     }
 
     [Fact]
@@ -414,8 +415,11 @@ public class IdentityFeatureProcessorTests : IDisposable
         _serviceProvider.Dispose();
     }
 
-    internal class IdentityFeatureProcessorTests_DbContext : DbContext
+    internal class IdentityFeatureProcessorTests_DbContext : ExtensibleDbContext
     {
-        public IdentityFeatureProcessorTests_DbContext(DbContextOptions<IdentityFeatureProcessorTests_DbContext> options) : base(options) { }
+        public IdentityFeatureProcessorTests_DbContext(
+            DbContextOptions<IdentityFeatureProcessorTests_DbContext> options,
+            IServiceProvider serviceProvider)
+        : base(options, serviceProvider) { }
     }
 }

@@ -1,4 +1,5 @@
-﻿using CdCSharp.EF.Core.Abstractions;
+﻿using CdCSharp.EF.Core;
+using CdCSharp.EF.Core.Abstractions;
 using CdCSharp.EF.Features.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -19,7 +20,7 @@ public class AuditingFeatureProcessor : IFeatureProcessor
     }
     public void OnModelCreating(ModelBuilder modelBuilder) { }
 
-    public void OnModelCreatingEntity(ModelBuilder modelBuilder, Type entityType)
+    public void OnModelCreatingEntity(ModelBuilder modelBuilder, Type entityType, ExtensibleDbContext context)
     {
         if (typeof(IAuditableEntity).IsAssignableFrom(entityType))
         {

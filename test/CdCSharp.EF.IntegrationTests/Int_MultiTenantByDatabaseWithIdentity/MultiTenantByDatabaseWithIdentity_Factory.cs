@@ -22,15 +22,20 @@ public class MultiTenantByDatabaseWithIdentity_Factory : WebApplicationFactory<P
             services.AddControllers();
 
             // Configure multi-tenant with database strategy and Identity
-            services.AddMultiTenantByDatabaseDbContext<MultiTenantByDatabaseWithIdentity_DbContext>(
-                tenants => tenants
-                    .AddTenant("tenant1", options =>
-                        options.UseInMemoryDatabase($"Integration_DB_Identity_tenant1_{_instanceId}"))
-                    .AddTenant("tenant2", options =>
-                        options.UseInMemoryDatabase($"Integration_DB_Identity_tenant2_{_instanceId}"))
-                    .AddTenant("tenant3", options =>
-                        options.UseInMemoryDatabase($"Integration_DB_Identity_tenant3_{_instanceId}")),
-                features => features.EnableIdentity<Guid>()
+            services.AddExtensibleDbContext<MultiTenantByDatabaseWithIdentity_DbContext>(
+                features =>
+                {
+                    features.EnableMultiTenantByDatabase(tenants => tenants
+                        .AddTenant("tenant1", options =>
+                            options.UseInMemoryDatabase($"Integration_DB_Identity_tenant1_{_instanceId}"))
+                        .AddTenant("tenant2", options =>
+                            options.UseInMemoryDatabase($"Integration_DB_Identity_tenant2_{_instanceId}"))
+                        .AddTenant("tenant3", options =>
+                            options.UseInMemoryDatabase($"Integration_DB_Identity_tenant3_{_instanceId}")));
+
+                    features.EnableIdentity<Guid>();
+                    return features;
+                }
             );
         });
 

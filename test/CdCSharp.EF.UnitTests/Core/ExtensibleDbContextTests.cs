@@ -31,11 +31,11 @@ public class ExtensibleDbContextTests : IDisposable
             .Verifiable();
 
         mockProcessor1
-            .Setup(p => p.OnModelCreatingEntity(It.IsAny<ModelBuilder>(), It.IsAny<Type>()))
+            .Setup(p => p.OnModelCreatingEntity(It.IsAny<ModelBuilder>(), It.IsAny<Type>(), It.IsAny<ExtensibleDbContext>()))
             .Verifiable();
 
         mockProcessor2
-            .Setup(p => p.OnModelCreatingEntity(It.IsAny<ModelBuilder>(), It.IsAny<Type>()))
+            .Setup(p => p.OnModelCreatingEntity(It.IsAny<ModelBuilder>(), It.IsAny<Type>(), It.IsAny<ExtensibleDbContext>()))
             .Verifiable();
 
         mockProcessor1

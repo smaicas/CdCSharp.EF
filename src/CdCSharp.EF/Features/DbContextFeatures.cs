@@ -1,6 +1,8 @@
 ﻿using CdCSharp.EF.Features.Auditing;
 using CdCSharp.EF.Features.Identity;
+using CdCSharp.EF.Features.MultiTenant;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace CdCSharp.EF.Features;
 
@@ -8,6 +10,7 @@ public class DbContextFeatures
 {
     public AuditingFeature Auditing { get; set; } = new();
     public IdentityFeature Identity { get; set; } = new();
+    public MultiTenantFeature MultiTenant { get; set; } = new();
 
     public static DbContextFeatures Default => new();
 }
@@ -70,6 +73,35 @@ public class DbContextFeaturesBuilder
         _features.Identity.UserTokenType = typeof(TUserToken);
 
         configureIdentity?.Invoke(_features.Identity.Configuration);
+
+        return this;
+    }
+
+    public DbContextFeaturesBuilder EnableMultiTenantByDiscriminator(Action<DbContextOptionsBuilder>? options = null)
+    {
+        _features.MultiTenant.Enabled = true;
+        _features.MultiTenant.Configuration.Strategy = MultiTenantStrategy.Discriminator;
+
+        if (options != null)
+        {
+            _features.MultiTenant.Configuration.DiscriminatorConfiguration = options;
+        }
+
+        return this;
+    }
+    public DbContextFeaturesBuilder EnableMultiTenantByDatabase(
+        Action<MultiTenantByDatabaseBuilder> buildTenants)
+    {
+        MultiTenantByDatabaseBuilder builder = new();
+        buildTenants(builder);
+        Dictionary<string, Action<DbContextOptionsBuilder>> tenantConfigurations = builder.Build();
+
+        if (!tenantConfigurations.Any())
+            throw new ArgumentException("At least one tenant configuration is required.");
+
+        _features.MultiTenant.Enabled = true;
+        _features.MultiTenant.Configuration.Strategy = MultiTenantStrategy.Database;
+        _features.MultiTenant.Configuration.DatabaseConfigurations = tenantConfigurations;
 
         return this;
     }

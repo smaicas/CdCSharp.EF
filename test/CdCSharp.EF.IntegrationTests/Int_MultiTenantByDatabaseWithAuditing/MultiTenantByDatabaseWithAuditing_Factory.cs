@@ -24,21 +24,20 @@ public class MultiTenantByDatabaseWithAuditing_Factory : WebApplicationFactory<P
             // Add controllers
             services.AddControllers();
 
-            // Configure multi-tenant with database strategy and auditing
-            services.AddMultiTenantByDatabaseDbContext<MultiTenantByDatabaseWithAuditing_DbContext>(
-                tenants => tenants
-                    .AddTenant("tenant1", options =>
-                        options.UseInMemoryDatabase($"Integration_DB_Audit_tenant1_{_instanceId}"))
-                    .AddTenant("tenant2", options =>
-                        options.UseInMemoryDatabase($"Integration_DB_Audit_tenant2_{_instanceId}"))
-                    .AddTenant("tenant3", options =>
-                        options.UseInMemoryDatabase($"Integration_DB_Audit_tenant3_{_instanceId}")),
-                features => features.EnableAuditing(config =>
+            services.AddExtensibleDbContext<MultiTenantByDatabaseWithAuditing_DbContext>(
+                features => features
+                .EnableMultiTenantByDatabase(
+                    tenants => tenants
+                    .AddTenant("tenant1", options => options.UseInMemoryDatabase($"Integration_DB_Audit_tenant1_{_instanceId}"))
+                    .AddTenant("tenant2", options => options.UseInMemoryDatabase($"Integration_DB_Audit_tenant2_{_instanceId}"))
+                    .AddTenant("tenant3", options => options.UseInMemoryDatabase($"Integration_DB_Audit_tenant3_{_instanceId}"))
+                    )
+                .EnableAuditing(config =>
                 {
                     config.BehaviorWhenNoUser = AuditingBehavior.UseDefaultUser;
                     config.DefaultUserId = "SYSTEM";
                 })
-            );
+                );
         });
 
         builder.Configure(app =>
