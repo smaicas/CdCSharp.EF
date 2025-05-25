@@ -6,7 +6,7 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 
 		<PackageId>CdCSharp.EF</PackageId>
-		<Description>A complete and extensible library for implementing Multi-Tenancy in .NET 9 applications with Entity Framework Core, offering transparent data isolation and flexible configuration.</Description>
+		<Description>An extensible Entity Framework Core library that provides common enterprise application features like automatic auditing, multi-tenancy, and ASP.NET Core Identity integration.</Description>
 		<VersionPrefix>1.0.0</VersionPrefix>
 		<Authors>Samuel Maícas (CdCSharp)</Authors>
 		<Company>smaicas</Company>

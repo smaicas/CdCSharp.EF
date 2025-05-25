@@ -24,18 +24,18 @@ dotnet add package CdCSharp.EF
 
 ## 📋 Table of Contents
 
-- [Quick Start](#-quick-start)
-- [Features](#-features)
+- [Quick Start](#quick-start)
+- [Features](#features)
   - [Auditing](#auditing)
   - [Multi-Tenancy](#multi-tenancy)
   - [Identity](#identity)
-- [Advanced Configuration](#-advanced-configuration)
-- [Extensibility](#-extensibility)
-- [Examples](#-examples)
-- [API Reference](#-api-reference)
-- [Architecture](#-architecture)
-- [Contributing](#-contributing)
-- [License](#-license)
+- [Advanced Configuration](#advanced-configuration)
+- [Extensibility](#extensibility)
+- [Examples](#examples)
+- [API Reference](#api-reference)
+- [Architecture](#architecture)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## 🏁 Quick Start
 
